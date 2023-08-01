@@ -1,0 +1,67 @@
+name: OneDep Manager
+version: 0.0.1
+description: Management application for OneDep instances.
+tags: ['onedep', 'management', 'admin']
+authors:
+- name: Weslley Morellato Bueno
+  email: wbueno@ebi.ac.uk
+  url: https://github.com/wmorellato
+languages: ['python']
+cli:
+  services:
+    description: Manage OneDep services
+    arguments:
+      service:
+        description: Service name
+        type: str
+    commands:
+      list:
+        description: Foobar
+      start:
+        description: Foobar
+      restart:
+        description: Foobar
+      stop:
+        description: Foobar
+      status:
+        description: Foobar
+  tools:
+    description: Manage OneDep binary toolset
+    arguments:
+      package:
+        description: Package name
+    commands:
+      build:
+        description: Foobar
+      status:
+        description: Foobar
+      download:
+        description: Foobar
+  packages:
+    description: Manage OneDep Python packages
+    arguments:
+      package:
+        description: Package name
+    commands:
+      upgrade:
+        description: Foobar
+      checkout:
+        description: Foobar
+      status:
+        description: Foobar
+  instance:
+    description: Manage the current OneDep instance
+    commands:
+      install:
+        description: Install a new OneDep instance
+      update:
+        description: Update to the newest version
+      status:
+        description: Get a full report of the current instance
+  config:
+    description: Query the site configuration
+    commands:
+      get:
+        description: Read a value from the configuration
+      rebuild:
+        description: Rebuilds the configuration
