@@ -70,4 +70,13 @@ cli:
             description: The variable name to get
             type: string
       rebuild:
-        description: Rebuilds the configuration
+        description: Rebuild the configuration
+        arguments:
+          site:
+            description: wwPDB site ID (e.g. WWPDB_DEPLOY_TEST_RU)
+            type: string
+          location:
+            description: wwPDB location ID (e.g. pdbe, pdbj, rcsb-east, ... )
+            type: string
+      load:
+        description: Load variables into shell environment
