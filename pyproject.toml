@@ -1,11 +1,11 @@
 [tool.poetry]
-name = "OneDep Manager"
+name = "onedep_manager"
 version = "0.0.1"
 description = "Management application for OneDep instances."
 authors = ["Weslley Morellato Bueno <wbueno@ebi.ac.uk>"]
 
 [tool.poetry.scripts]
-onedep_manager = "onedep_manager.main:cli"
+onedep-manager = "onedep_manager.main:cli"
 
 [tool.poetry.dependencies]
 python = "^3.10"
