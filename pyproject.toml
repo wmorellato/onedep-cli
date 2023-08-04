@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "OneDep Manager"
+version = "0.0.1"
+description = "Management application for OneDep instances."
+authors = ["Weslley Morellato Bueno <wbueno@ebi.ac.uk>"]
+
+[tool.poetry.scripts]
+onedep_manager = "onedep_manager.main:cli"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+click = "^8.1"
+
+[tool.poetry.dependencies]
+click = "8.1.3"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

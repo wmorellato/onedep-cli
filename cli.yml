@@ -13,7 +13,7 @@ cli:
     arguments:
       service:
         description: Service name
-        type: str
+        type: string
     commands:
       list:
         description: Foobar
@@ -30,6 +30,7 @@ cli:
     arguments:
       package:
         description: Package name
+        type: string
     commands:
       build:
         description: Foobar
@@ -42,6 +43,7 @@ cli:
     arguments:
       package:
         description: Package name
+        type: string
     commands:
       upgrade:
         description: Foobar
@@ -63,5 +65,9 @@ cli:
     commands:
       get:
         description: Read a value from the configuration
+        arguments:
+          variable:
+            description: The variable name to get
+            type: string
       rebuild:
         description: Rebuilds the configuration
