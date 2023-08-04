@@ -1,9 +1,9 @@
 import click
-from onedepmanager.cli.services import services_group
-from onedepmanager.cli.tools import tools_group
-from onedepmanager.cli.packages import packages_group
-from onedepmanager.cli.instance import instance_group
-from onedepmanager.cli.config import config_group
+from onedep_manager.cli.services import services_group
+from onedep_manager.cli.tools import tools_group
+from onedep_manager.cli.packages import packages_group
+from onedep_manager.cli.instance import instance_group
+from onedep_manager.cli.config import config_group
 
 
 @click.group()
