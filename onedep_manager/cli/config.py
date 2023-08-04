@@ -15,7 +15,14 @@ def get(variable):
     ci = ConfigInfo()
 
     for v in variable:
-        click.echo(f"{v}: {ci.get(v)}")
+        vcap = v.upper()
+        value = ci.get(vcap)
+        color = "green"
+
+        if not value:
+            color = "red"
+
+        click.echo(f"{click.style(vcap, fg=color)}: {ci.get(vcap)}")
 
 
 @config_group.command(name="rebuild", help="Rebuilds the configuration")

@@ -9,8 +9,8 @@ from onedep_manager.cli.config import get
 def mock_config(monkeypatch):
     # cid_mock = MagicMock(ConfigInfoData)
     mc = {
-        "gascogne": "father",
-        "eileen": "crow",
+        "GASCOGNE": "father",
+        "EILEEN": "crow",
     }
 
     monkeypatch.setattr(ConfigInfoData, "getConfigDictionary", lambda s: mc)
@@ -21,7 +21,7 @@ def test_valid_variable(mock_config):
     result = runner.invoke(get, ["gascogne"])
 
     assert result.exit_code == 0
-    assert result.output == "gascogne: father\n"
+    assert result.output == "GASCOGNE: father\n"
 
 
 def test_missing_variable(mock_config):
@@ -29,7 +29,7 @@ def test_missing_variable(mock_config):
     result = runner.invoke(get, ["bar"])
 
     assert result.exit_code == 0
-    assert result.output == "bar: None\n"
+    assert result.output == "BAR: None\n"
 
 
 def test_multiple_variables(mock_config):
@@ -37,4 +37,4 @@ def test_multiple_variables(mock_config):
     result = runner.invoke(get, ["gascogne", "eileen"])
 
     assert result.exit_code == 0
-    assert result.output == "gascogne: father\neileen: crow\n"
+    assert result.output == "GASCOGNE: father\nEILEEN: crow\n"
