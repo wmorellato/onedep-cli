@@ -1,13 +1,14 @@
+import os
 import pytest
 from click.testing import CliRunner
+from unittest import mock
 
 from wwpdb.utils.config.ConfigInfoData import ConfigInfoData
-from onedep_manager.cli.config import get
+from onedep_manager.cli.config import get, rebuild
 
 
 @pytest.fixture
 def mock_config(monkeypatch):
-    # cid_mock = MagicMock(ConfigInfoData)
     mc = {
         "GASCOGNE": "father",
         "EILEEN": "crow",
@@ -38,3 +39,15 @@ def test_multiple_variables(mock_config):
 
     assert result.exit_code == 0
     assert result.output == "GASCOGNE: father\nEILEEN: crow\n"
+
+
+@mock.patch.dict(os.environ, {"TOP_WWPDB_SITE_CONFIG_DIR": "tests/fixtures/site-config/"})
+def test_rebuild():
+    runner = CliRunner()
+    result = runner.invoke(rebuild, ["pdbe_test", "pdbe"])
+
+    assert result.exit_code == 0
+    assert os.path.exists("tests/fixtures/site-config/pdbe/pdbe_test/ConfigInfoFileCache.json")
+
+    os.remove("tests/fixtures/site-config/pdbe/pdbe_test/ConfigInfoFileCache.json")
+    os.remove("tests/fixtures/site-config/pdbe/pdbe_test/ConfigInfoFileCache.py")
