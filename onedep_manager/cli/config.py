@@ -3,6 +3,7 @@ import click
 
 from wwpdb.utils.config.ConfigInfo import ConfigInfo
 from wwpdb.utils.config.ConfigInfoFileExec import ConfigInfoFileExec
+from wwpdb.utils.config.ConfigInfoShellExec import ConfigInfoShellExec
 
 
 @click.group(name="config", help="Query the site configuration")
@@ -37,5 +38,9 @@ def rebuild(site_id, location):
 
 
 @config_group.command(name="load", help="Load variables into shell environment")
-def load():
+@click.argument("site_id")
+@click.argument("location")
+def load(site_id, location):
     """`load` command handler"""
+    ci = ConfigInfoShellExec(siteLoc=location, siteId=site_id, cacheFlag=False, log=sys.stderr)
+    ci.shellConfig()

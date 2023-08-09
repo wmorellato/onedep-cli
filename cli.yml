@@ -80,3 +80,10 @@ cli:
             type: string
       load:
         description: Load variables into shell environment
+        arguments:
+          site:
+            description: wwPDB site ID (e.g. WWPDB_DEPLOY_TEST_RU)
+            type: string
+          location:
+            description: wwPDB location ID (e.g. pdbe, pdbj, rcsb-east, ... )
+            type: string
