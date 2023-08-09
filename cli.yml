@@ -1,4 +1,4 @@
-name: OneDep Manager
+name: onedep_manager
 version: 0.0.1
 description: Management application for OneDep instances.
 tags: ['onedep', 'management', 'admin']
@@ -13,7 +13,7 @@ cli:
     arguments:
       service:
         description: Service name
-        type: str
+        type: string
     commands:
       list:
         description: Foobar
@@ -30,6 +30,7 @@ cli:
     arguments:
       package:
         description: Package name
+        type: string
     commands:
       build:
         description: Foobar
@@ -42,6 +43,7 @@ cli:
     arguments:
       package:
         description: Package name
+        type: string
     commands:
       upgrade:
         description: Foobar
@@ -63,5 +65,25 @@ cli:
     commands:
       get:
         description: Read a value from the configuration
+        arguments:
+          variable:
+            description: The variable name to read
+            type: string
       rebuild:
-        description: Rebuilds the configuration
+        description: Rebuild the configuration
+        arguments:
+          site:
+            description: wwPDB site ID (e.g. WWPDB_DEPLOY_TEST_RU)
+            type: string
+          location:
+            description: wwPDB location ID (e.g. pdbe, pdbj, rcsb-east, ... )
+            type: string
+      load:
+        description: Load variables into shell environment
+        arguments:
+          site:
+            description: wwPDB site ID (e.g. WWPDB_DEPLOY_TEST_RU)
+            type: string
+          location:
+            description: wwPDB location ID (e.g. pdbe, pdbj, rcsb-east, ... )
+            type: string
