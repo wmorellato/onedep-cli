@@ -12,17 +12,27 @@ cli:
     description: Manage OneDep services
     arguments:
       service:
-        description: Service name
+        description: Service name. If ommited, will perform operations on all services.
         type: string
+    options:
+      local:
+        description: If set, perform operations only on the current host.
+        type: flag
     commands:
-      list:
-        description: Foobar
       start:
-        description: Foobar
+        description: Start the service on all registered services or locally only.
       restart:
-        description: Foobar
+        description: Restart the service on all registered services or locally only.
+        options:
+          force:
+            description: If set, will forcefully kill services' processes.
+            type: flag
       stop:
-        description: Foobar
+        description: Stop the service on all registered services or locally only.
+        options:
+          force:
+            description: If set, will forcefully kill services' processes.
+            type: flag
       status:
         description: Foobar
   tools:
