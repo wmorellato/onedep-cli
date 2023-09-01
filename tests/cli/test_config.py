@@ -6,8 +6,6 @@ from unittest import mock
 from wwpdb.utils.config.ConfigInfoData import ConfigInfoData
 from onedep_manager.cli.config import get, rebuild, load
 
-from wwpdb.utils.config.ConfigInfoShellExec import ConfigInfoShellExec
-
 
 @pytest.fixture
 def mock_config(monkeypatch):

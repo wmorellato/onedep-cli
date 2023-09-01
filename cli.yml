@@ -18,6 +18,7 @@ cli:
       local:
         description: If set, perform operations only on the current host.
         type: flag
+        short: l
     commands:
       start:
         description: Start the service on all registered services or locally only.
@@ -27,14 +28,16 @@ cli:
           force:
             description: If set, will forcefully kill services' processes.
             type: flag
+            short: f
       stop:
         description: Stop the service on all registered services or locally only.
         options:
           force:
             description: If set, will forcefully kill services' processes.
             type: flag
+            short: f
       status:
-        description: Foobar
+        description: Check the status of a service on all registered services or locally only.
   tools:
     description: Manage OneDep binary toolset
     arguments:
