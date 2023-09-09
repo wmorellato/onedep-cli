@@ -1,13 +1,15 @@
+import socket
 import logging
 import importlib
 
 from abc import ABC
 from enum import Enum
+from typing import List
 from paramiko.client import SSHClient
 from paramiko.ssh_exception import SSHException
 
 from onedep_manager.config import Config
-from onedep_manager.services.status import Status
+from onedep_manager.services.status import Status, InstanceStatus
 
 from wwpdb.utils.config.ConfigInfo import ConfigInfo, getSiteId
 
@@ -24,7 +26,7 @@ class Dispatcher(ABC):
     def __init__(self, config: Config) -> None:
         super().__init__()
 
-    def start_service(self, service: str):
+    def start_service(self, service: str) -> InstanceStatus:
         raise NotImplementedError()
 
 
@@ -36,6 +38,7 @@ class LocalDispatcher(Dispatcher):
     """
     def __init__(self, config: Config) -> None:
         self._config = config
+        self._hostname = socket.gethostname()
     
     def _get_handler(self, handler: str) -> None:
         module, klass = handler.rsplit(".", 1)
@@ -47,10 +50,16 @@ class LocalDispatcher(Dispatcher):
         except Exception as e:
             raise Exception(f"Could not load handler {handler}: {e}")
 
-    def start_service(self, service: str) -> None:
+    def start_service(self, service: str) -> List[InstanceStatus]:
         serv = self._config.get_service(service)
         handler = self._get_handler(serv.handler)
-        handler().start()
+        
+        try:
+            handler().start()
+        except:
+            return [InstanceStatus(hostname=self._hostname, status=Status.FAILED)]
+        
+        return [InstanceStatus(hostname=self._hostname, status=Status.RUNNING)]
 
 
 class RemoteDispatcher(Dispatcher):
@@ -76,12 +85,14 @@ class RemoteDispatcher(Dispatcher):
             stdin, stdout, stderr = client.exec_command(f"python -m {module} {command}", environment=self.env)
         except SSHException:
             # logger.error()
-            return Status.FAILED
+            return InstanceStatus(hostname=host, status=Status.FAILED)
 
         if "running" not in stdout:
-            return Status.FAILED
+            return InstanceStatus(hostname=host, status=Status.FAILED)
 
-    def start_service(self, service: str):
+        return InstanceStatus(hostname=host, status=Status.RUNNING)
+
+    def start_service(self, service: str) -> List[InstanceStatus]:
         status = []
         serv = self._config.get_service(service)
         module, klass = serv.handler.rsplit(".", 1)

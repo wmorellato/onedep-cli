@@ -1,8 +1,10 @@
 import sys
 import pytest
+import socket
 from unittest.mock import MagicMock
 
 from onedep_manager.services.dispatcher import LocalDispatcher, RemoteDispatcher
+from onedep_manager.services.status import Status
 from onedep_manager.config import Config
 
 
@@ -18,7 +20,11 @@ def test_local_dispatcher():
 
     config = Config(config_file="tests/fixtures/config.yaml")
     dispatcher = LocalDispatcher(config=config)
-    dispatcher.start_service("apache")
+    status = dispatcher.start_service("apache")
+
+    assert status[0].hostname == socket.gethostname()
+    assert status[0].status == Status.RUNNING
+
 
     with pytest.raises(Exception):
         # foo not in config
@@ -36,4 +42,7 @@ def test_remote_dispatcher(monkeypatch):
 
     config = Config(config_file="tests/fixtures/config.yaml")
     dispatcher = RemoteDispatcher(config=config)
-    dispatcher.start_service("apache")
+    status = dispatcher.start_service("apache")
+
+    assert status[0].hostname == "localhost"
+    assert status[0].status == Status.RUNNING
