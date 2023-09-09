@@ -7,3 +7,4 @@ class Service:
     name: str
     description: str
     handler: str
+    hosts: list

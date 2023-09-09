@@ -1,7 +1,7 @@
 import sys
 import click
 
-from onedep_manager.cli.common import Printer
+from onedep_manager.cli.common import ConsolePrinter, RawPrinter
 
 from wwpdb.utils.config.ConfigInfo import ConfigInfo
 from wwpdb.utils.config.ConfigInfoFileExec import ConfigInfoFileExec
@@ -25,7 +25,7 @@ def get(variable):
         value = ci.get(vcap)
         rows.append([vcap, value])
 
-    Printer().rich_table(header=["Variable", "Value"], data=rows)
+    ConsolePrinter().table(header=["Variable", "Value"], data=rows)
 
 
 @config_group.command(name="rebuild", help="Rebuild the configuration")
