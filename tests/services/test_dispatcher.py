@@ -25,7 +25,6 @@ def test_local_dispatcher():
     assert status[0].hostname == socket.gethostname()
     assert status[0].status == Status.RUNNING
 
-
     with pytest.raises(Exception):
         # foo not in config
         dispatcher.start_service("foo")
@@ -37,7 +36,7 @@ def test_local_dispatcher():
 
 def test_remote_dispatcher(monkeypatch):
     mock_ssh = MagicMock()
-    mock_ssh.return_value.exec_command.return_value = (None, "Service running", None)
+    mock_ssh.return_value.exec_command.return_value = (None, "running", None)
     monkeypatch.setattr("onedep_manager.services.dispatcher.SSHClient", mock_ssh)
 
     config = Config(config_file="tests/fixtures/config.yaml")

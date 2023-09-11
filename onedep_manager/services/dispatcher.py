@@ -20,6 +20,8 @@ logger.setLevel(logging.INFO)
 class Commands(Enum):
     START = "start"
     STOP = "stop"
+    RESTART = "restart"
+    STATUS = "status"
 
 
 class Dispatcher(ABC):
@@ -27,6 +29,9 @@ class Dispatcher(ABC):
         super().__init__()
 
     def start_service(self, service: str) -> InstanceStatus:
+        raise NotImplementedError()
+
+    def stop_service(self, service: str) -> InstanceStatus:
         raise NotImplementedError()
 
 
@@ -53,16 +58,58 @@ class LocalDispatcher(Dispatcher):
     def start_service(self, service: str) -> List[InstanceStatus]:
         serv = self._config.get_service(service)
         handler = self._get_handler(serv.handler)
+        status = Status.UNKNOWN
         
         try:
-            handler().start()
+            status = handler().start()
         except:
             return [InstanceStatus(hostname=self._hostname, status=Status.FAILED)]
         
-        return [InstanceStatus(hostname=self._hostname, status=Status.RUNNING)]
+        return [InstanceStatus(hostname=self._hostname, status=status)]
+
+    def stop_service(self, service: str) -> InstanceStatus:
+        serv = self._config.get_service(service)
+        handler = self._get_handler(serv.handler)
+        status = Status.UNKNOWN
+
+        try:
+            status = handler().stop()
+        except:
+            return [InstanceStatus(hostname=self._hostname, status=Status.FAILED)]
+        
+        return [InstanceStatus(hostname=self._hostname, status=status)]
+
+    def restart_service(self, service: str) -> InstanceStatus:
+        serv = self._config.get_service(service)
+        handler = self._get_handler(serv.handler)
+        status = Status.UNKNOWN
+
+        try:
+            status = handler().restart()
+        except:
+            return [InstanceStatus(hostname=self._hostname, status=Status.FAILED)]
+        
+        return [InstanceStatus(hostname=self._hostname, status=status)]
+
+    def get_status(self, service: str) -> InstanceStatus:
+        serv = self._config.get_service(service)
+        handler = self._get_handler(serv.handler)
+        status = Status.UNKNOWN
+        
+        try:
+            status = handler().status()
+        except:
+            return [InstanceStatus(hostname=self._hostname, status=Status.FAILED)]
+        
+        return [InstanceStatus(hostname=self._hostname, status=status)]
 
 
 class RemoteDispatcher(Dispatcher):
+    """Dispatcher for remote hosts. This class is NOT
+    responsible for starting processes. It just calls
+    the registered handler, which will then start the
+    service in its current host.
+    """
     def __init__(self, config: Config) -> None:
         self._config = config
         self._ci = ConfigInfo()
@@ -83,14 +130,15 @@ class RemoteDispatcher(Dispatcher):
 
         try:
             stdin, stdout, stderr = client.exec_command(f"python -m {module} {command}", environment=self.env)
-        except SSHException:
-            # logger.error()
+        except SSHException as e:
+            logger.error("Couldn't connect to host %s", host, exc_info=True)
             return InstanceStatus(hostname=host, status=Status.FAILED)
 
-        if "running" not in stdout:
+        status = stdout.strip()
+        if Status(status) != Status.RUNNING:
             return InstanceStatus(hostname=host, status=Status.FAILED)
 
-        return InstanceStatus(hostname=host, status=Status.RUNNING)
+        return InstanceStatus(hostname=host, status=Status(status))
 
     def start_service(self, service: str) -> List[InstanceStatus]:
         status = []
@@ -99,5 +147,35 @@ class RemoteDispatcher(Dispatcher):
 
         for h in serv.hosts:
             status.append(self._run_onhost(h, module, Commands.START))
+
+        return status
+
+    def stop_service(self, service: str) -> InstanceStatus:
+        status = []
+        serv = self._config.get_service(service)
+        module, klass = serv.handler.rsplit(".", 1)
+
+        for h in serv.hosts:
+            status.append(self._run_onhost(h, module, Commands.STOP))
+
+        return status
+
+    def restart_service(self, service: str) -> InstanceStatus:
+        status = []
+        serv = self._config.get_service(service)
+        module, klass = serv.handler.rsplit(".", 1)
+
+        for h in serv.hosts:
+            status.append(self._run_onhost(h, module, Commands.RESTART))
+
+        return status
+
+    def get_status(self, service: str) -> InstanceStatus:
+        status = []
+        serv = self._config.get_service(service)
+        module, klass = serv.handler.rsplit(".", 1)
+
+        for h in serv.hosts:
+            status.append(self._run_onhost(h, module, Commands.STATUS))
 
         return status

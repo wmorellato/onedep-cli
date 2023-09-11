@@ -3,8 +3,10 @@ from dataclasses import dataclass
 
 
 class Status(Enum):
+    UNKNOWN = "unknown"
     RUNNING = "running"
     FAILED = "failed"
+    STOPPED = "stopped"
 
     def __str__(self) -> str:
         return self.value
