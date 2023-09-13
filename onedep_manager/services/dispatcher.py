@@ -6,14 +6,14 @@ from abc import ABC
 from enum import Enum
 from typing import List
 from paramiko.client import SSHClient
-from paramiko.ssh_exception import SSHException
+from paramiko.ssh_exception import SSHException, AuthenticationException
 
 from onedep_manager.config import Config
 from onedep_manager.services.status import Status, InstanceStatus
 
 from wwpdb.utils.config.ConfigInfo import ConfigInfo, getSiteId
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
@@ -126,11 +126,11 @@ class RemoteDispatcher(Dispatcher):
     def _run_onhost(self, host: str, module: str, command: Commands):
         client = SSHClient()
         client.load_system_host_keys()
-        client.connect(host, timeout=10)
 
         try:
+            client.connect(host, timeout=10)
             stdin, stdout, stderr = client.exec_command(f"python -m {module} {command}", environment=self.env)
-        except SSHException as e:
+        except (SSHException, AuthenticationException):
             logger.error("Couldn't connect to host %s", host, exc_info=True)
             return InstanceStatus(hostname=host, status=Status.FAILED)
 
