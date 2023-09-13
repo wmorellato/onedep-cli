@@ -1,5 +1,15 @@
-from enum import Enum, auto
+from enum import Enum
 from dataclasses import dataclass
+
+
+class Commands(Enum):
+    START = "start"
+    STOP = "stop"
+    RESTART = "restart"
+    STATUS = "status"
+
+    def __str__(self) -> str:
+        return self.value
 
 
 class Status(Enum):

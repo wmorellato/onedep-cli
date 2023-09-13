@@ -3,25 +3,18 @@ import logging
 import importlib
 
 from abc import ABC
-from enum import Enum
 from typing import List
 from paramiko.client import SSHClient
 from paramiko.ssh_exception import SSHException, AuthenticationException
 
 from onedep_manager.config import Config
-from onedep_manager.services.status import Status, InstanceStatus
+from onedep_manager.services.schemas import Status, InstanceStatus, Commands
 
 from wwpdb.utils.config.ConfigInfo import ConfigInfo, getSiteId
 
+
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-
-
-class Commands(Enum):
-    START = "start"
-    STOP = "stop"
-    RESTART = "restart"
-    STATUS = "status"
 
 
 class Dispatcher(ABC):

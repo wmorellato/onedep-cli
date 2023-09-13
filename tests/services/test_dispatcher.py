@@ -4,14 +4,14 @@ import socket
 from unittest.mock import MagicMock
 
 from onedep_manager.services.dispatcher import LocalDispatcher, RemoteDispatcher
-from onedep_manager.services.status import Status
+from onedep_manager.services.schemas import Status
 from onedep_manager.config import Config
 
 
 class HandlerTest:
     def start(self):
         print("service started succesfully")
-        return "running"
+        return Status.RUNNING
 
 
 def test_local_dispatcher():

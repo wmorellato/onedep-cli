@@ -5,7 +5,7 @@ from click.testing import CliRunner
 
 from onedep_manager.cli.services import start, stop, status
 from wwpdb.utils.config.ConfigInfoData import ConfigInfoData
-from onedep_manager.services.status import Status, InstanceStatus
+from onedep_manager.services.schemas import Status, InstanceStatus
 
 
 @pytest.fixture
