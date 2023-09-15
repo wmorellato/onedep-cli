@@ -1,6 +1,8 @@
 import sys
 import click
 
+from onedep_manager.cli.common import ConsolePrinter, RawPrinter
+
 from wwpdb.utils.config.ConfigInfo import ConfigInfo
 from wwpdb.utils.config.ConfigInfoFileExec import ConfigInfoFileExec
 from wwpdb.utils.config.ConfigInfoShellExec import ConfigInfoShellExec
@@ -16,16 +18,14 @@ def config_group():
 def get(variable):
     """`get` command handler"""
     ci = ConfigInfo()
+    rows = []
 
     for v in variable:
         vcap = v.upper()
         value = ci.get(vcap)
-        color = "green"
+        rows.append([vcap, value])
 
-        if not value:
-            color = "red"
-
-        click.echo(f"{click.style(vcap, fg=color)}: {ci.get(vcap)}")
+    ConsolePrinter().table(header=["Variable", "Value"], data=rows)
 
 
 @config_group.command(name="rebuild", help="Rebuild the configuration")

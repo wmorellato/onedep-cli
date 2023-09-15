@@ -1,0 +1,11 @@
+services:
+  - name: apache
+    description: DepUI server
+    handler: tests.test_services.HandlerTest
+    hosts:
+      - localhost
+  - name: foo
+    description: OneDep foo service
+    handler: tests.test_services.FooTest
+    hosts:
+      - localhost
