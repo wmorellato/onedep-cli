@@ -23,7 +23,7 @@ def get(variable):
     for v in variable:
         vcap = v.upper()
         value = ci.get(vcap)
-        rows.append([vcap, value])
+        rows.append([vcap, str(value)])
 
     ConsolePrinter().table(header=["Variable", "Value"], data=rows)
 
