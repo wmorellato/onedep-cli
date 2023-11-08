@@ -8,3 +8,10 @@ class Service:
     description: str
     handler: str
     hosts: list
+
+
+@dataclass
+class PackageDistribution:
+    name: str
+    version: str
+    path: str
