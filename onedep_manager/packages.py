@@ -27,7 +27,7 @@ def _get_distribution_path(distribution: metadata.Distribution):
             # the source path does not exist
             return None
         
-        return os.path.dirname(spath)
+        return spath
 
     return path
 
