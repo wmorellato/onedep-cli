@@ -16,7 +16,7 @@ class MockDistribution:
 def test_get_wwpdb_packages(monkeypatch):
     monkeypatch.setattr(
         "onedep_manager.packages.metadata.distributions",
-        lambda: [MockDistribution("wwpdb.utils.config", "0.1.0", "/foo/bar/wwpdb.utils.config.egg-info")]
+        lambda: [MockDistribution("wwpdb.utils.config", "0.1.0", "/foo/bar/wwpdb.utils.config/wwpdb.utils.config.egg-info")]
     )
 
     package = next(get_wwpdb_packages())

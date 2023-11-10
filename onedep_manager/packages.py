@@ -1,5 +1,6 @@
 import os
 import json
+import urllib.parse
 from importlib import metadata
 
 from onedep_manager.schemas import PackageDistribution
@@ -9,6 +10,7 @@ def _get_distribution_path(distribution: metadata.Distribution):
     path = os.path.dirname(distribution._path) # if pip can, why can't I?
 
     if path.endswith("site-packages"):
+        # this is not accurate, as the package could be installed somewhere else
         # try to get the source location from 'direct_url.json'
         direct_url_path = os.path.join(distribution._path, "direct_url.json")
 
@@ -18,7 +20,7 @@ def _get_distribution_path(distribution: metadata.Distribution):
 
         with open(direct_url_path) as f:
             data = json.load(f)
-            spath = data["url"]
+            spath = urllib.parse.urlparse(data["url"]).path
 
         if not os.path.exists(spath):
             # the source path does not exist
@@ -43,8 +45,3 @@ def get_wwpdb_packages():
         package_path = _get_distribution_path(distribution)
 
         yield PackageDistribution(name=package_name, version=package_version, path=package_path)
-
-
-if __name__ == "__main__":
-    for package in get_wwpdb_packages():
-        print(package)
