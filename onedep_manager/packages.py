@@ -45,14 +45,14 @@ def _get_branch(path):
         return None
     
 
-def get_wwpdb_packages(branch=True):
+def get_wwpdb_packages(prefix="wwpdb", branch=True):
     distributions = metadata.distributions()
 
     for distribution in distributions:
         package_name = distribution.metadata["Name"] # had some issues accessing distribution.name directly
 
         # maybe get the list of wwpdb packages from a config file?
-        if not package_name.startswith("wwpdb"):
+        if not package_name.startswith(prefix):
             continue
 
         package_version = distribution.metadata["Version"]

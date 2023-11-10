@@ -27,6 +27,37 @@ def test_get_wwpdb_packages(monkeypatch):
     assert package.path == "/foo/bar/wwpdb.utils.config"
 
 
+def test_get_single_package(monkeypatch):
+    package1 = MockDistribution("wwpdb.utils.config", "0.1.0", "/foo/bar/wwpdb.utils.config/wwpdb.utils.config.egg-info")
+    package2 = MockDistribution("wwpdb.utils.foobar", "0.2.0", "/foo/bar/wwpdb.utils.foobar/wwpdb.utils.foobar.egg-info")
+
+    monkeypatch.setattr(
+        "onedep_manager.packages.metadata.distributions",
+        lambda: [package1, package2]
+    )
+
+    packages = list(get_wwpdb_packages(prefix="wwpdb.utils.config"))
+
+    assert len(packages) == 1
+    assert packages[0].name == "wwpdb.utils.config"
+    assert packages[0].version == "0.1.0"
+    assert packages[0].path == "/foo/bar/wwpdb.utils.config"
+
+
+def test_get_with_patterns(monkeypatch):
+    package1 = MockDistribution("wwpdb.utils.config", "0.1.0", "/foo/bar/wwpdb.utils.config/wwpdb.utils.config.egg-info")
+    package2 = MockDistribution("wwpdb.utils.foobar", "0.2.0", "/foo/bar/wwpdb.utils.foobar/wwpdb.utils.foobar.egg-info")
+    package3 = MockDistribution("wwpdb.apps.foobar", "0.2.0", "/foo/bar/wwpdb.apps.foobar/wwpdb.apps.foobar.egg-info")
+
+    monkeypatch.setattr(
+        "onedep_manager.packages.metadata.distributions",
+        lambda: [package1, package2, package3]
+    )
+
+    packages = list(get_wwpdb_packages(prefix="wwpdb.utils"))
+    assert len(packages) == 2
+
+
 def test_branch(monkeypatch, tmp_path):
     d = tmp_path / "wwpdb.utils.config"
     egg = d / "wwpdb.utils.config.egg-info"
