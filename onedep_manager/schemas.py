@@ -1,5 +1,4 @@
-from enum import Enum
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -15,3 +14,4 @@ class PackageDistribution:
     name: str
     version: str
     path: str
+    branch: str = None

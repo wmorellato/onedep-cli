@@ -1,4 +1,5 @@
 import os
+import git
 import json
 import urllib.parse
 from importlib import metadata
@@ -31,7 +32,20 @@ def _get_distribution_path(distribution: metadata.Distribution):
     return path
 
 
-def get_wwpdb_packages():
+def _get_branch(path):
+    if path is None:
+        return None
+
+    try:
+        repo = git.Repo(path)
+        return repo.active_branch.name
+    except TypeError:
+        return repo.head.name
+    except:
+        return None
+    
+
+def get_wwpdb_packages(branch=True):
     distributions = metadata.distributions()
 
     for distribution in distributions:
@@ -43,5 +57,6 @@ def get_wwpdb_packages():
 
         package_version = distribution.metadata["Version"]
         package_path = _get_distribution_path(distribution)
+        package_branch = _get_branch(package_path) if branch else None
 
-        yield PackageDistribution(name=package_name, version=package_version, path=package_path)
+        yield PackageDistribution(name=package_name, version=package_version, path=package_path, branch=package_branch)

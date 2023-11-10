@@ -1,4 +1,5 @@
 import pytest
+import subprocess
 
 from onedep_manager.schemas import PackageDistribution
 from onedep_manager.packages import get_wwpdb_packages
@@ -24,3 +25,40 @@ def test_get_wwpdb_packages(monkeypatch):
     assert package.name == "wwpdb.utils.config"
     assert package.version == "0.1.0"
     assert package.path == "/foo/bar/wwpdb.utils.config"
+
+
+def test_branch(monkeypatch, tmp_path):
+    d = tmp_path / "wwpdb.utils.config"
+    egg = d / "wwpdb.utils.config.egg-info"
+    egg.mkdir(parents=True)
+
+    subprocess.run(["git", "init"], cwd=d)
+    subprocess.run(["git", "checkout", "-b", "foobar"], cwd=d)
+
+    monkeypatch.setattr(
+        "onedep_manager.packages.metadata.distributions",
+        lambda: [MockDistribution("wwpdb.utils.config", "0.1.0", str(egg))]
+    )
+
+    package = next(get_wwpdb_packages(branch=True))
+
+    assert package.branch == "foobar"
+
+
+def test_detached_head(monkeypatch, tmp_path):
+    d = tmp_path / "wwpdb.utils.config"
+    egg = d / "wwpdb.utils.config.egg-info"
+    egg.mkdir(parents=True)
+
+    subprocess.run(["git", "init"], cwd=d)
+    subprocess.run(["git", "commit", "--allow-empty", "-m", "Initial commit"], cwd=d)
+    subprocess.run(["git", "commit", "--allow-empty", "-m", "Second commit"], cwd=d)
+    subprocess.run(["git", "checkout", "HEAD~1"], cwd=d)
+
+    monkeypatch.setattr(
+        "onedep_manager.packages.metadata.distributions",
+        lambda: [MockDistribution("wwpdb.utils.config", "0.1.0", str(egg))]
+    )
+
+    package = next(get_wwpdb_packages(branch=True))
+    assert package.branch == "HEAD"
