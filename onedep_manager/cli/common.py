@@ -5,6 +5,7 @@ from abc import ABC
 from rich import print_json
 from rich.console import Console
 from rich.table import Table
+from rich.theme import Theme
 
 
 class Printer(ABC):
@@ -35,11 +36,13 @@ class RawPrinter(Printer):
 
 
 class ConsolePrinter(Printer):
+    def __init__(self, theme=None):
+        self.console = Console(theme=Theme(theme))
+
     def json(self, data: dict):
         print_json(data=data)
 
     def table(self, header: list, data: list):
-        console = Console()
         table = Table(show_header=True, header_style="bold blue")
 
         for col in header:
@@ -48,4 +51,4 @@ class ConsolePrinter(Printer):
         for row in data:
             table.add_row(*row)
 
-        console.print(table)
+        self.console.print(table)

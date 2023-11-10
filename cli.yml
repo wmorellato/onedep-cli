@@ -55,7 +55,7 @@ cli:
     description: Manage OneDep Python packages
     arguments:
       package:
-        description: Package name. If ommited, will perform operations on all packages.
+        description: Package name. If set to 'all', will perform operations on all packages.
         type: string
     commands:
       upgrade:
