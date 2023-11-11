@@ -63,8 +63,8 @@ cli:
       checkout:
         description: Checks out a package to a specific version.
         arguments:
-          version:
-            description: The version to checkout. Can be a tag, branch or commit hash.
+          reference:
+            description: The reference to checkout. Can be a tag, branch or commit hash.
             type: string
       status:
         description: Check the status of a package.

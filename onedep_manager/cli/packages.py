@@ -49,11 +49,15 @@ def upgrade(package):
     """`upgrade` command handler"""
 
 
-@packages_group.command(name="checkout", help="Checks out a package to a specific version. If PACKAGE_NAME is set to 'all', will perform operations on all packages.")
-@click.argument("version")
+@packages_group.command(name="checkout", help="Checks out a package to a specific version. If PACKAGE_NAME is set to 'all', will perform operations on all packages. REFERENCE can be a tag, branch or commit hash.")
 @click.argument("package")
-def checkout(version, package):
+@click.argument("reference")
+def checkout(package, reference):
     """`checkout` command handler"""
+    if package == "all":
+        packages = get_wwpdb_packages(branch=True)
+    else:
+        packages = get_wwpdb_packages(prefix=package, branch=True)
 
 
 @packages_group.command(name="status", help="Check the status of a package. If PACKAGE_NAME is set to 'all', will perform operations on all packages.")

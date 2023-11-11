@@ -1,6 +1,7 @@
 import os
 import git
 import json
+import logging
 import urllib.parse
 from importlib import metadata
 
@@ -60,3 +61,21 @@ def get_wwpdb_packages(prefix="wwpdb", branch=True):
         package_branch = _get_branch(package_path) if branch else None
 
         yield PackageDistribution(name=package_name, version=package_version, path=package_path, branch=package_branch)
+
+
+def checkout_wwpdb_packages(prefix="wwpdb", reference="master"):
+    for package in get_wwpdb_packages(prefix=prefix):
+        if package.branch is None:
+            continue
+
+        try:
+            repo = git.Repo(package.path)
+            repo.git.checkout(reference)
+        except:
+            logging.warning(f"Could not checkout '{package.name}' to '{reference}'")
+            yield package
+            continue
+
+        # check the branch again
+        package.branch = _get_branch(package.path)
+        yield package
