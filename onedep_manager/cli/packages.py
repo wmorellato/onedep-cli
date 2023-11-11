@@ -9,7 +9,7 @@ from wwpdb.utils.config.ConfigInfo import ConfigInfo
 table_theme = {
     "branch_main": "dark_sea_green4",
     "branch_develop": "dark_khaki",
-    "branch_other": "dark_salmon",
+    "branch_other": "indian_red",
     "variable": "cyan",
 }
 
