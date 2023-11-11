@@ -26,6 +26,9 @@ def _format_branch(branch):
 
 
 def _format_path(path):
+    if path is None:
+        return ""
+
     config = ConfigInfo()
     onedep_root = config.get("TOP_SOFTWARE_DIR")
 
