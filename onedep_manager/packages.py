@@ -73,9 +73,9 @@ def checkout_wwpdb_packages(prefix="wwpdb", reference="master"):
             repo.git.checkout(reference)
         except:
             logging.warning(f"Could not checkout '{package.name}' to '{reference}'")
-            yield package
+            yield package, False
             continue
 
         # check the branch again
         package.branch = _get_branch(package.path)
-        yield package
+        yield package, True

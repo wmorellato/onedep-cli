@@ -1,6 +1,6 @@
 import click
 
-from onedep_manager.packages import get_wwpdb_packages
+from onedep_manager.packages import get_wwpdb_packages, checkout_wwpdb_packages
 from onedep_manager.cli.common import ConsolePrinter
 
 from wwpdb.utils.config.ConfigInfo import ConfigInfo
@@ -55,9 +55,21 @@ def upgrade(package):
 def checkout(package, reference):
     """`checkout` command handler"""
     if package == "all":
-        packages = get_wwpdb_packages(branch=True)
+        packages = checkout_wwpdb_packages(reference=reference)
     else:
-        packages = get_wwpdb_packages(prefix=package, branch=True)
+        packages = checkout_wwpdb_packages(prefix=package, reference=reference)
+
+    rows = []
+    for s, success in packages:
+        branch_text = _format_branch(s.branch)
+
+        if not success:
+            branch_text = f"[blink]{branch_text}[/blink]"
+
+        path_text = _format_path(s.path)
+        rows.append([s.name, s.version, path_text, branch_text])
+
+    ConsolePrinter(theme=table_theme).table(header=["Package", "Version", "Location", "Branch"], data=rows)
 
 
 @packages_group.command(name="status", help="Check the status of a package. If PACKAGE_NAME is set to 'all', will perform operations on all packages.")
