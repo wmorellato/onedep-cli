@@ -7,22 +7,22 @@ from wwpdb.utils.config.ConfigInfo import ConfigInfo
 
 
 table_theme = {
-    "branch_main": "green",
-    "branch_develop": "yellow",
-    "branch_other": "red",
+    "branch_main": "dark_sea_green4",
+    "branch_develop": "dark_khaki",
+    "branch_other": "dark_salmon",
     "variable": "cyan",
 }
 
 
 def _format_branch(branch):
     if branch in ("master", "main"):
-        return f"[main]{branch}[/main]"
+        return f"[branch_main]{branch}[/branch_main]"
     elif branch == "develop":
-        return f"[develop]{branch}[/develop]"
+        return f"[branch_develop]{branch}[/branch_develop]"
     elif branch is None:
         return f""
     else:
-        return f"[other]{branch}[/other]"
+        return f"[branch_other]{branch}[/branch_other]"
 
 
 def _format_path(path):
