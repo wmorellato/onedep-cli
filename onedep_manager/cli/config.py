@@ -1,7 +1,7 @@
 import sys
 import click
 
-from onedep_manager.cli.common import ConsolePrinter, RawPrinter
+from onedep_manager.cli.common import ConsolePrinter
 
 from wwpdb.utils.config.ConfigInfo import ConfigInfo
 from wwpdb.utils.config.ConfigInfoFileExec import ConfigInfoFileExec

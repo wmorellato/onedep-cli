@@ -1,6 +1,5 @@
 import os
 import yaml
-import logging
 
 from onedep_manager.schemas import Service
 from wwpdb.utils.config.ConfigInfo import ConfigInfo

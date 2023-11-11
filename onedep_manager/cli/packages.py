@@ -3,12 +3,36 @@ import click
 from onedep_manager.packages import get_wwpdb_packages
 from onedep_manager.cli.common import ConsolePrinter
 
+from wwpdb.utils.config.ConfigInfo import ConfigInfo
 
-branch_theme = {
-    "main": "green",
-    "develop": "yellow",
-    "other": "red",
+
+table_theme = {
+    "branch_main": "green",
+    "branch_develop": "yellow",
+    "branch_other": "red",
+    "variable": "cyan",
 }
+
+
+def _format_branch(branch):
+    if branch in ("master", "main"):
+        return f"[main]{branch}[/main]"
+    elif branch == "develop":
+        return f"[develop]{branch}[/develop]"
+    elif branch is None:
+        return f""
+    else:
+        return f"[other]{branch}[/other]"
+
+
+def _format_path(path):
+    config = ConfigInfo()
+    onedep_root = config.get("TOP_SOFTWARE_DIR")
+
+    if path.startswith(onedep_root):
+        return path.replace(onedep_root, "[variable]${TOP_SOFTWARE_DIR}[/variable]")
+
+    return path
 
 
 @click.group(name="packages", help="Manage OneDep Python packages")
@@ -40,14 +64,8 @@ def status(package):
 
     rows = []
     for s in packages:
-        if s.branch in ("master", "main"):
-            branch_text = f"[main]{s.branch}[/main]"
-        elif s.branch == "develop":
-            branch_text = f"[develop]{s.branch}[/develop]"
-        elif s.branch is None:
-            branch_text = f""
-        else:
-            branch_text = f"[other]{s.branch}[/other]"
-        rows.append([s.name, s.version, s.path, branch_text])
+        branch_text = _format_branch(s.branch)
+        path_text = _format_path(s.path)
+        rows.append([s.name, s.version, path_text, branch_text])
 
-    ConsolePrinter(theme=branch_theme).table(header=["Package", "Version", "Location", "Branch"], data=rows)
+    ConsolePrinter(theme=table_theme).table(header=["Package", "Version", "Location", "Branch"], data=rows)
