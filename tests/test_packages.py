@@ -1,7 +1,8 @@
 import pytest
 import subprocess
 
-from onedep_manager.packages import get_wwpdb_packages, checkout_wwpdb_packages
+from onedep_manager.schemas import PackageDistribution
+from onedep_manager.packages import get_wwpdb_packages, switch_reference
 
 
 class MockDistribution:
@@ -35,7 +36,7 @@ def test_get_single_package(monkeypatch):
         lambda: [package1, package2]
     )
 
-    packages = list(get_wwpdb_packages(prefix="wwpdb.utils.config"))
+    packages = list(get_wwpdb_packages(name="wwpdb.utils.config"))
 
     assert len(packages) == 1
     assert packages[0].name == "wwpdb.utils.config"
@@ -53,7 +54,7 @@ def test_get_with_patterns(monkeypatch):
         lambda: [package1, package2, package3]
     )
 
-    packages = list(get_wwpdb_packages(prefix="wwpdb.utils"))
+    packages = list(get_wwpdb_packages(name="wwpdb.utils"))
     assert len(packages) == 2
 
 
@@ -96,8 +97,7 @@ def test_detached_head(monkeypatch, tmp_path):
 
 def test_checkout(monkeypatch, tmp_path):
     d = tmp_path / "wwpdb.utils.config"
-    egg = d / "wwpdb.utils.config.egg-info"
-    egg.mkdir(parents=True)
+    d.mkdir(parents=True)
 
     subprocess.run(["git", "init"], cwd=d)
     subprocess.run(["git", "commit", "--allow-empty", "-m", "Initial commit"], cwd=d)
@@ -105,15 +105,10 @@ def test_checkout(monkeypatch, tmp_path):
     subprocess.run(["git", "commit", "--allow-empty", "-m", "Second commit"], cwd=d)
     subprocess.run(["git", "checkout", "main"], cwd=d)
 
-    monkeypatch.setattr(
-        "onedep_manager.packages.metadata.distributions",
-        lambda: [MockDistribution("wwpdb.utils.config", "0.1.0", str(egg))]
-    )
+    package = PackageDistribution(name="wwpdb.utils.config", version="0.1.0", path=d, branch="main")
+    success = switch_reference(package=package, reference="develop")
 
-    packages = list(checkout_wwpdb_packages(prefix="wwpdb.utils.config", reference="develop"))
-
-    assert len(packages) == 1
-    assert packages[0].branch == "develop"
+    assert success == True
 
     # check the branch with actual git
     assert subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=d, capture_output=True).stdout.decode().strip() == "develop"
@@ -127,11 +122,7 @@ def test_invalid_branch(monkeypatch, tmp_path):
     subprocess.run(["git", "init"], cwd=d)
     subprocess.run(["git", "commit", "--allow-empty", "-m", "Initial commit"], cwd=d)
 
-    monkeypatch.setattr(
-        "onedep_manager.packages.metadata.distributions",
-        lambda: [MockDistribution("wwpdb.utils.config", "0.1.0", str(egg))]
-    )
+    package = PackageDistribution(name="wwpdb.utils.config", version="0.1.0", path=d, branch="main")
+    success = switch_reference(package=package, reference="foobar")
 
-    packages = list(checkout_wwpdb_packages(prefix="wwpdb.utils.config", reference="foobar"))
-
-    assert packages[0].branch == "main"
+    assert success == False

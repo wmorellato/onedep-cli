@@ -46,14 +46,17 @@ def _get_branch(path):
         return None
     
 
-def get_wwpdb_packages(prefix="wwpdb", branch=True):
+def get_wwpdb_packages(name="wwpdb", branch=True):
     distributions = metadata.distributions()
 
     for distribution in distributions:
         package_name = distribution.metadata["Name"] # had some issues accessing distribution.name directly
 
         # maybe get the list of wwpdb packages from a config file?
-        if not package_name.startswith(prefix):
+        if not package_name.startswith("wwpdb"):
+            continue
+
+        if name not in package_name:
             continue
 
         package_version = distribution.metadata["Version"]
@@ -63,19 +66,16 @@ def get_wwpdb_packages(prefix="wwpdb", branch=True):
         yield PackageDistribution(name=package_name, version=package_version, path=package_path, branch=package_branch)
 
 
-def checkout_wwpdb_packages(prefix="wwpdb", reference="master"):
-    for package in get_wwpdb_packages(prefix=prefix):
-        if package.branch is None:
-            continue
+def switch_reference(package: PackageDistribution, reference="master"):
+    # stil need to check if package is in edit mode
+    if package.branch is None:
+        return False
 
-        try:
-            repo = git.Repo(package.path)
-            repo.git.checkout(reference)
-        except:
-            logging.warning(f"Could not checkout '{package.name}' to '{reference}'")
-            yield package, False
-            continue
+    try:
+        repo = git.Repo(package.path)
+        repo.git.checkout(reference)
+    except:
+        logging.warning(f"Could not checkout '{package.name}' to '{reference}'")
+        return False
 
-        # check the branch again
-        package.branch = _get_branch(package.path)
-        yield package, True
+    return True

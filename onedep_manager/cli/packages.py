@@ -1,6 +1,6 @@
 import click
 
-from onedep_manager.packages import get_wwpdb_packages, checkout_wwpdb_packages
+from onedep_manager.packages import get_wwpdb_packages, switch_reference
 from onedep_manager.cli.common import ConsolePrinter
 
 from wwpdb.utils.config.ConfigInfo import ConfigInfo
@@ -43,43 +43,44 @@ def packages_group():
     """`packages` command group"""
 
 
-@packages_group.command(name="upgrade", help="Upgrades a package to the latest version. If PACKAGE_NAME is set to 'all', will perform operations on all packages.")
+@packages_group.command(name="upgrade", help="Upgrades a package to the latest version. If PACKAGE is set to 'all', will perform operations on all packages.")
 @click.argument("package")
 def upgrade(package):
     """`upgrade` command handler"""
 
 
-@packages_group.command(name="checkout", help="Checks out a package to a specific version. If PACKAGE_NAME is set to 'all', will perform operations on all packages. REFERENCE can be a tag, branch or commit hash.")
+@packages_group.command(name="checkout", help="Checks out a package to a specific version. If PACKAGE is set to 'all', will perform operations on all packages. REFERENCE can be a tag, branch or commit hash.")
 @click.argument("package")
 @click.argument("reference")
 def checkout(package, reference):
     """`checkout` command handler"""
     if package == "all":
-        packages = checkout_wwpdb_packages(reference=reference)
+        packages = get_wwpdb_packages(branch=True)
     else:
-        packages = checkout_wwpdb_packages(prefix=package, reference=reference)
+        packages = get_wwpdb_packages(name=package, branch=True)
 
     rows = []
-    for s, success in packages:
-        branch_text = _format_branch(s.branch)
+    for p in packages:
+        success = switch_reference(reference=reference)
+        branch_text = _format_branch(p.branch)
 
         if not success:
             branch_text = f"[blink]{branch_text}[/blink]"
 
-        path_text = _format_path(s.path)
-        rows.append([s.name, s.version, path_text, branch_text])
+        path_text = _format_path(p.path)
+        rows.append([p.name, p.version, path_text, branch_text])
 
     ConsolePrinter(theme=table_theme).table(header=["Package", "Version", "Location", "Branch"], data=rows)
 
 
-@packages_group.command(name="status", help="Check the status of a package. If PACKAGE_NAME is set to 'all', will perform operations on all packages.")
+@packages_group.command(name="get", help="Check the status of a package. If PACKAGE is set to 'all', will perform operations on all packages.")
 @click.argument("package")
-def status(package):
-    """`status` command handler"""
+def get(package):
+    """`get` command handler"""
     if package == "all":
         packages = get_wwpdb_packages(branch=True)
     else:
-        packages = get_wwpdb_packages(prefix=package, branch=True)
+        packages = get_wwpdb_packages(name=package, branch=True)
 
     rows = []
     for s in packages:

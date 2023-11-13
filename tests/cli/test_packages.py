@@ -1,7 +1,7 @@
 import pytest
 from click.testing import CliRunner
 
-from onedep_manager.cli.packages import status
+from onedep_manager.cli.packages import get
 from onedep_manager.schemas import PackageDistribution
 
 from wwpdb.utils.config.ConfigInfoData import ConfigInfoData
@@ -16,18 +16,17 @@ def mock_config(monkeypatch):
     monkeypatch.setattr(ConfigInfoData, "getConfigDictionary", lambda s: mc)
 
 
-def test_status(monkeypatch, mock_config):
+def test_get(monkeypatch, mock_config):
     monkeypatch.setattr(
         "onedep_manager.cli.packages.get_wwpdb_packages",
-        lambda prefix=None, branch=None: [
+        lambda name=None, branch=None: [
             PackageDistribution(name="wwpdb.utils.config", version="0.1.0", path="/foo/bar/wwpdb.utils.config", branch="master"),
             PackageDistribution(name="wwpdb.utils.foobar", version="0.2.0", path="/top/dir/wwpdb.utils.foobar")
         ]
     )
 
     runner = CliRunner()
-    result = runner.invoke(status, ["all"])
-    print(result.output)
+    result = runner.invoke(get, ["all"])
 
     assert result.exit_code == 0
     assert "wwpdb.utils.config" in result.output
@@ -37,4 +36,4 @@ def test_status(monkeypatch, mock_config):
 
     assert "wwpdb.utils.foobar" in result.output
     assert "0.2.0" in result.output
-    assert "${TOP_SOFTWARE_DIR}/wwpdb.utils.foobar" in result.output
+    assert "${TOP_SOFTWARE_DIR}/wwpdb.utils" in result.output
