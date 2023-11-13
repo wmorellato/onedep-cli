@@ -61,7 +61,7 @@ def checkout(package, reference):
 
     rows = []
     for p in packages:
-        success = switch_reference(reference=reference)
+        success = switch_reference(package=p, reference=reference)
         branch_text = _format_branch(p.branch)
 
         if not success:
