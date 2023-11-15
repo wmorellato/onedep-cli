@@ -3,9 +3,7 @@ import json
 from abc import ABC
 
 from rich import print_json
-from rich.console import Console
 from rich.table import Table
-from rich.theme import Theme
 
 
 class Printer(ABC):
@@ -36,8 +34,8 @@ class RawPrinter(Printer):
 
 
 class ConsolePrinter(Printer):
-    def __init__(self, theme=None):
-        self.console = Console(theme=Theme(theme))
+    def __init__(self, console):
+        self.console = console
 
     def json(self, data: dict):
         print_json(data=data)

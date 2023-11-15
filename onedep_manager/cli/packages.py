@@ -1,4 +1,6 @@
 import click
+from rich import console
+from rich.theme import Theme
 
 from onedep_manager.packages import get_wwpdb_packages, switch_reference
 from onedep_manager.cli.common import ConsolePrinter
@@ -60,17 +62,21 @@ def checkout(package, reference):
         packages = get_wwpdb_packages(name=package, branch=True)
 
     rows = []
-    for p in packages:
-        success = switch_reference(package=p, reference=reference)
-        branch_text = _format_branch(p.branch)
 
-        if not success:
-            branch_text = f"[blink]{branch_text}[/blink]"
+    c = console.Console(theme=Theme(table_theme))
+    with c.status("Checking out packages", spinner_style="green") as s:
+        for p in packages:
+            s.update(f"Checking out '{p.name}' to '{reference}'...")
+            success = switch_reference(package=p, reference=reference)
+            branch_text = _format_branch(p.branch)
 
-        path_text = _format_path(p.path)
-        rows.append([p.name, p.version, path_text, branch_text])
+            if not success:
+                branch_text = f"[blink]{branch_text}[/blink]"
 
-    ConsolePrinter(theme=table_theme).table(header=["Package", "Version", "Location", "Branch"], data=rows)
+            path_text = _format_path(p.path)
+            rows.append([p.name, p.version, path_text, branch_text])
+
+    ConsolePrinter(console=c).table(header=["Package", "Version", "Location", "Branch"], data=rows)
 
 
 @packages_group.command(name="get", help="Check the status of a package. If PACKAGE is set to 'all', will perform operations on all packages.")
@@ -83,9 +89,11 @@ def get(package):
         packages = get_wwpdb_packages(name=package, branch=True)
 
     rows = []
+
+    c = console.Console(theme=Theme(table_theme))
     for s in packages:
         branch_text = _format_branch(s.branch)
         path_text = _format_path(s.path)
         rows.append([s.name, s.version, path_text, branch_text])
 
-    ConsolePrinter(theme=table_theme).table(header=["Package", "Version", "Location", "Branch"], data=rows)
+    ConsolePrinter(console=c).table(header=["Package", "Version", "Location", "Branch"], data=rows)
