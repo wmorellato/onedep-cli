@@ -20,14 +20,18 @@ def install_package(source, edit=False):
     Returns:
         bool: True if the package was installed successfully, False otherwise.
     """
+    fp = open("pip.log", "w")
+
     try:
         if edit:
-            subprocess.check_call(["pip", "install", "-U", "-e", source])
+            subprocess.check_call(["pip", "install", "-U", "-e", source], stdout=fp, stderr=fp)
         else:
-            subprocess.check_call(["pip", "install", "-U", source])
+            subprocess.check_call(["pip", "install", "-U", source], stdout=fp, stderr=fp)
     except Exception as e:
         logging.error(e)
         return False
+    finally:
+        fp.close()
     
     return True
 
