@@ -68,6 +68,7 @@ def update(package):
             path_text = _format_path(p.path)
 
             if not success:
+                c.log(f"Failed to update '{p.name}'")
                 rows.append([p.name, f"[blink]{p.version}[/blink]", path_text, p.branch])
                 continue
 
@@ -108,6 +109,7 @@ def checkout(package, reference):
             branch_text = _format_branch(p.branch)
 
             if not success:
+                c.log(f"Failed to checkout '{p.name}'")
                 branch_text = f"[blink]{branch_text}[/blink]"
 
             path_text = _format_path(p.path)

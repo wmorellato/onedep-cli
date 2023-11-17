@@ -28,7 +28,6 @@ def install_package(source, edit=False):
         else:
             subprocess.check_call(["pip", "install", "-U", source], stdout=fp, stderr=fp)
     except Exception as e:
-        logging.error(e)
         return False
     finally:
         fp.close()
@@ -131,7 +130,6 @@ def switch_reference(package: PackageDistribution, reference="master"):
         repo = git.Repo(package.path)
         repo.git.checkout(reference)
     except:
-        logging.warning(f"Could not checkout '{package.name}' to '{reference}'")
         return False
 
     return True
@@ -145,7 +143,6 @@ def pull(package: PackageDistribution):
         repo = git.Repo(package.path)
         repo.git.pull("origin", package.branch)
     except:
-        logging.warning(f"Could not pull '{package.name}' to '{package.branch}'")
         return False
 
     return install_package(package.path, edit=package.editable)
