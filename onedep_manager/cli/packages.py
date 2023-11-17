@@ -15,6 +15,7 @@ table_theme = {
     "variable": "cyan",
     "pversion": "indian_red",
     "cversion": "dark_sea_green4",
+    "sversion": "dark_khaki",
 }
 
 
@@ -74,8 +75,13 @@ def update(package):
 
             if upd_package is None:
                 version_text = f"[pversion]{p.version}[/pversion] -> [cversion]?[/cversion]"
-            else:
+                rows.append([p.name, version_text, path_text, p.branch])
+                continue
+
+            if p.version != upd_package.version:
                 version_text = f"[pversion]{p.version}[/pversion] -> [cversion]{upd_package.version}[/cversion]"
+            else:
+                version_text = f"[sversion]{p.version}[/sversion]"
 
             rows.append([p.name, version_text, path_text, p.branch])
 
