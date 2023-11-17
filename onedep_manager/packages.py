@@ -2,10 +2,46 @@ import os
 import git
 import json
 import logging
+import subprocess
 import urllib.parse
 from importlib import metadata
 
 from onedep_manager.schemas import PackageDistribution
+
+
+def install_package(source, edit=False):
+    """
+    Install a package from either a package name or a path to a repository.
+
+    Args:
+        source (str): The name of the package or the path to the repository.
+        edit (bool, optional): Whether to install the package in editable mode. Defaults to False.
+
+    Returns:
+        bool: True if the package was installed successfully, False otherwise.
+    """
+    try:
+        if edit:
+            subprocess.check_call(["pip", "install", "-U", "-e", source])
+        else:
+            subprocess.check_call(["pip", "install", "-U", source])
+    except Exception as e:
+        logging.error(e)
+        return False
+    
+    return True
+
+
+def _is_editable(distribution: metadata.Distribution):
+    path = os.path.dirname(distribution._path)
+
+    if path is None:
+        return False
+
+    if path.endswith("site-packages"):
+        return False
+    
+    return True
 
 
 def _get_distribution_path(distribution: metadata.Distribution):
@@ -56,8 +92,9 @@ def get_package(name, branch=True):
     package_version = distribution.metadata["Version"]
     package_path = _get_distribution_path(distribution)
     package_branch = _get_branch(package_path) if branch else None
+    package_editable = _is_editable(distribution)
 
-    return PackageDistribution(name=package_name, version=package_version, path=package_path, branch=package_branch)
+    return PackageDistribution(name=package_name, version=package_version, path=package_path, branch=package_branch, editable=package_editable)
 
 
 def get_wwpdb_packages(name="wwpdb", branch=True):
@@ -76,8 +113,9 @@ def get_wwpdb_packages(name="wwpdb", branch=True):
         package_version = distribution.metadata["Version"]
         package_path = _get_distribution_path(distribution)
         package_branch = _get_branch(package_path) if branch else None
+        package_editable = _is_editable(distribution)
 
-        yield PackageDistribution(name=package_name, version=package_version, path=package_path, branch=package_branch)
+        yield PackageDistribution(name=package_name, version=package_version, path=package_path, branch=package_branch, editable=package_editable)
 
 
 def switch_reference(package: PackageDistribution, reference="master"):
@@ -106,4 +144,4 @@ def pull(package: PackageDistribution):
         logging.warning(f"Could not pull '{package.name}' to '{package.branch}'")
         return False
 
-    return True
+    return install_package(package.path, edit=package.editable)

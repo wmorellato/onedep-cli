@@ -15,3 +15,4 @@ class PackageDistribution:
     version: str
     path: str
     branch: str = None
+    editable: bool = False

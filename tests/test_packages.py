@@ -136,6 +136,7 @@ def test_update(monkeypatch, tmp_path):
     mock_repo.git.pull = lambda *args, **kwargs: None
 
     monkeypatch.setattr("onedep_manager.packages.git.Repo", mock_repo)
+    monkeypatch.setattr("onedep_manager.packages.install_package", lambda source, edit: True)
 
     subprocess.run(["git", "init"], cwd=d)
 
