@@ -58,8 +58,8 @@ cli:
         description: Part of or full package name. If set to 'all', will perform operations on all packages.
         type: string
     commands:
-      upgrade:
-        description: Upgrades a package to the latest version.
+      update:
+        description: Updates a package to the latest version.
       checkout:
         description: Checks out a package to a specific version.
         arguments:

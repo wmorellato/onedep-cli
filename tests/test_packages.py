@@ -1,8 +1,9 @@
 import pytest
 import subprocess
+from unittest.mock import MagicMock
 
 from onedep_manager.schemas import PackageDistribution
-from onedep_manager.packages import get_wwpdb_packages, switch_reference
+from onedep_manager.packages import get_wwpdb_packages, switch_reference, pull
 
 
 class MockDistribution:
@@ -116,8 +117,7 @@ def test_checkout(monkeypatch, tmp_path):
 
 def test_invalid_branch(monkeypatch, tmp_path):
     d = tmp_path / "wwpdb.utils.config"
-    egg = d / "wwpdb.utils.config.egg-info"
-    egg.mkdir(parents=True)
+    d.mkdir(parents=True)
 
     subprocess.run(["git", "init"], cwd=d)
     subprocess.run(["git", "commit", "--allow-empty", "-m", "Initial commit"], cwd=d)
@@ -126,3 +126,20 @@ def test_invalid_branch(monkeypatch, tmp_path):
     success = switch_reference(package=package, reference="foobar")
 
     assert success == False
+
+
+def test_update(monkeypatch, tmp_path):
+    d = tmp_path / "wwpdb.utils.config"
+    d.mkdir(parents=True)
+
+    mock_repo = MagicMock()
+    mock_repo.git.pull = lambda *args, **kwargs: None
+
+    monkeypatch.setattr("onedep_manager.packages.git.Repo", mock_repo)
+
+    subprocess.run(["git", "init"], cwd=d)
+
+    package = PackageDistribution(name="wwpdb.utils.config", version="0.1.0", path=d, branch="main")
+    success = pull(package=package)
+
+    assert success == True

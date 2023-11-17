@@ -2,7 +2,7 @@ import click
 from rich import console
 from rich.theme import Theme
 
-from onedep_manager.packages import get_wwpdb_packages, switch_reference
+from onedep_manager.packages import get_package, get_wwpdb_packages, switch_reference, pull
 from onedep_manager.cli.common import ConsolePrinter
 
 from wwpdb.utils.config.ConfigInfo import ConfigInfo
@@ -13,6 +13,8 @@ table_theme = {
     "branch_develop": "dark_khaki",
     "branch_other": "indian_red",
     "variable": "cyan",
+    "pversion": "indian_red",
+    "cversion": "dark_sea_green4",
 }
 
 
@@ -45,10 +47,39 @@ def packages_group():
     """`packages` command group"""
 
 
-@packages_group.command(name="upgrade", help="Upgrades a package to the latest version. If PACKAGE is set to 'all', will perform operations on all packages.")
+@packages_group.command(name="update", help="Updates a package to the latest remote version. If PACKAGE is set to 'all', will perform operations on all packages.")
 @click.argument("package")
-def upgrade(package):
-    """`upgrade` command handler"""
+def update(package):
+    """`update` command handler"""
+    if package == "all":
+        packages = get_wwpdb_packages(branch=True)
+    else:
+        packages = get_wwpdb_packages(name=package, branch=True)
+
+    rows = []
+
+    c = console.Console(theme=Theme(table_theme))
+    with c.status("Checking out packages", spinner_style="green") as s:
+        for p in packages:
+            s.update(f"Updating '{p.name}'...")
+            success = pull(package=p)
+
+            path_text = _format_path(p.path)
+
+            if not success:
+                rows.append([p.name, f"[blink]{p.version}[/blink]", path_text, p.branch])
+                continue
+
+            upd_package = get_package(name=p.name)
+
+            if upd_package is None:
+                version_text = f"[pversion]{p.version}[/pversion] -> [cversion]?[/cversion]"
+            else:
+                version_text = f"[pversion]{p.version}[/pversion] -> [cversion]{upd_package.version}[/cversion]"
+
+            rows.append([p.name, version_text, path_text, p.branch])
+
+    ConsolePrinter(console=c).table(header=["Package", "Version", "Location", "Branch"], data=rows)
 
 
 @packages_group.command(name="checkout", help="Checks out a package to a specific version. If PACKAGE is set to 'all', will perform operations on all packages. REFERENCE can be a tag, branch or commit hash.")

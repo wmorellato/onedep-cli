@@ -11,7 +11,7 @@ from onedep_manager.schemas import PackageDistribution
 def _get_distribution_path(distribution: metadata.Distribution):
     path = os.path.dirname(distribution._path) # if pip can, why can't I?
 
-    if path.endswith("site-packages"):
+    if path is not None and path.endswith("site-packages"):
         # this is not accurate, as the package could be installed somewhere else
         # try to get the source location from 'direct_url.json'
         direct_url_path = os.path.join(distribution._path, "direct_url.json")
@@ -44,7 +44,21 @@ def _get_branch(path):
         return repo.head.name
     except:
         return None
+
+
+def get_package(name, branch=True):
+    try:
+        distribution = metadata.distribution(name)
+    except metadata.PackageNotFoundError:
+        return None
     
+    package_name = distribution.metadata["Name"]
+    package_version = distribution.metadata["Version"]
+    package_path = _get_distribution_path(distribution)
+    package_branch = _get_branch(package_path) if branch else None
+
+    return PackageDistribution(name=package_name, version=package_version, path=package_path, branch=package_branch)
+
 
 def get_wwpdb_packages(name="wwpdb", branch=True):
     distributions = metadata.distributions()
@@ -76,6 +90,20 @@ def switch_reference(package: PackageDistribution, reference="master"):
         repo.git.checkout(reference)
     except:
         logging.warning(f"Could not checkout '{package.name}' to '{reference}'")
+        return False
+
+    return True
+
+
+def pull(package: PackageDistribution):
+    if package.branch is None:
+        return False
+
+    try:
+        repo = git.Repo(package.path)
+        repo.git.pull("origin", package.branch)
+    except:
+        logging.warning(f"Could not pull '{package.name}' to '{package.branch}'")
         return False
 
     return True
