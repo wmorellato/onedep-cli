@@ -1,5 +1,6 @@
 import click
 import logging
+from rich import console
 
 from onedep_manager.services.dispatcher import LocalDispatcher, RemoteDispatcher
 from onedep_manager.cli.common import ConsolePrinter
@@ -17,6 +18,7 @@ def services_group():
 def start(service, local):
     """`start` command handler"""
     config = Config()
+    c = console.Console()
 
     if local:
         logging.info("Starting %s locally", service)
@@ -35,7 +37,7 @@ def start(service, local):
     for s in status:
         rows.append([s.hostname, str(s.status)])
 
-    ConsolePrinter().table(header=["Hostname", "Status"], data=rows)
+    ConsolePrinter(console=c).table(header=["Hostname", "Status"], data=rows)
 
 
 @services_group.command(name="stop", help="Stop the service on all registered services or locally only.")
@@ -45,6 +47,7 @@ def start(service, local):
 def stop(service, force, local):
     """`stop` command handler"""
     config = Config()
+    c = console.Console()
 
     if local:
         logging.info("Stopping local instance of %s", service)
@@ -63,7 +66,7 @@ def stop(service, force, local):
     for s in status:
         rows.append([s.hostname, str(s.status)])
 
-    ConsolePrinter().table(header=["Hostname", "Status"], data=rows)
+    ConsolePrinter(console=c).table(header=["Hostname", "Status"], data=rows)
 
 
 @services_group.command(name="restart", help="Restart the service on all registered services or locally only.")
@@ -73,6 +76,7 @@ def stop(service, force, local):
 def restart(service, force, local):
     """`restart` command handler"""
     config = Config()
+    c = console.Console()
 
     if local:
         logging.info("Restarting local instance of %s", service)
@@ -91,7 +95,7 @@ def restart(service, force, local):
     for s in status:
         rows.append([s.hostname, str(s.status)])
 
-    ConsolePrinter().table(header=["Hostname", "Status"], data=rows)
+    ConsolePrinter(console=c).table(header=["Hostname", "Status"], data=rows)
 
 
 @services_group.command(name="status", help="Check the status of a service on all registered services or locally only.")
@@ -100,6 +104,7 @@ def restart(service, force, local):
 def status(service, local):
     """`status` command handler"""
     config = Config()
+    c = console.Console()
 
     if local:
         logging.info("Checking status of local instance of %s", service)
@@ -118,4 +123,4 @@ def status(service, local):
     for s in status:
         rows.append([s.hostname, str(s.status)])
 
-    ConsolePrinter().table(header=["Hostname", "Status"], data=rows)
+    ConsolePrinter(console=c).table(header=["Hostname", "Status"], data=rows)
