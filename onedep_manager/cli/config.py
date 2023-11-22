@@ -1,5 +1,6 @@
 import sys
 import click
+from rich.console import Console
 
 from onedep_manager.cli.common import ConsolePrinter
 
@@ -25,7 +26,8 @@ def get(variable):
         value = ci.get(vcap)
         rows.append([vcap, value])
 
-    ConsolePrinter().table(header=["Variable", "Value"], data=rows)
+    c = Console()
+    ConsolePrinter(console=c).table(header=["Variable", "Value"], data=rows)
 
 
 @config_group.command(name="rebuild", help="Rebuild the configuration")

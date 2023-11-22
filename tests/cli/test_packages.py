@@ -36,7 +36,7 @@ def test_get(monkeypatch, mock_config):
 
     assert "wwpdb.utils.foobar" in result.output
     assert "0.2.0" in result.output
-    assert "${TOP_SOFTWARE_DIR}/wwpdb.utils" in result.output
+    assert "${ONEDEP_PATH}/wwpdb.utils" in result.output
 
 
 def test_update(monkeypatch, mock_config):
@@ -59,7 +59,6 @@ def test_update(monkeypatch, mock_config):
 
     runner = CliRunner()
     result = runner.invoke(update, ["config"])
-    print(result.output)
 
     assert result.exit_code == 0
     assert "0.1.0 -> 0.2.0" in result.output

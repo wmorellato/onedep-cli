@@ -22,7 +22,8 @@ def test_valid_variable(mock_config):
     result = runner.invoke(get, ["gascoigne"])
 
     assert result.exit_code == 0
-    assert result.output == "GASCOIGNE: Central Yharnam\n"
+    assert "GASCOIGNE" in result.output
+    assert "Central Yharnam" in result.output
 
 
 def test_missing_variable(mock_config):
@@ -30,7 +31,7 @@ def test_missing_variable(mock_config):
     result = runner.invoke(get, ["bar"])
 
     assert result.exit_code == 0
-    assert result.output == "BAR: None\n"
+    assert "BAR" in result.output
 
 
 def test_multiple_variables(mock_config):
@@ -38,7 +39,10 @@ def test_multiple_variables(mock_config):
     result = runner.invoke(get, ["gascoigne", "ludwig"])
 
     assert result.exit_code == 0
-    assert result.output == "GASCOIGNE: Central Yharnam\nLUDWIG: Underground Corpse Pile\n"
+    assert "GASCOIGNE" in result.output
+    assert "Central Yharnam" in result.output
+    assert "LUDWIG" in result.output
+    assert "Underground Corpse Pile" in result.output
 
 
 @mock.patch.dict(os.environ, {"TOP_WWPDB_SITE_CONFIG_DIR": "tests/fixtures/site-config/"})
@@ -63,4 +67,4 @@ def test_load():
     os.remove("tests/fixtures/site-config/pdbe/pdbe_test/ConfigInfoFileCache.py")
 
     assert result.exit_code == 0
-    assert result.output == 'export LADY_MARIA="Astral Clocktower"\n'
+    assert 'export LADY_MARIA="Astral Clocktower"\n' in result.output

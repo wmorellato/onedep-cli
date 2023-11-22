@@ -38,7 +38,7 @@ def _format_path(path):
     onedep_root = config.get("TOP_SOFTWARE_DIR")
 
     if path.startswith(onedep_root):
-        return path.replace(onedep_root, "[variable]${TOP_SOFTWARE_DIR}[/variable]")
+        return path.replace(onedep_root, "[variable]${ONEDEP_PATH}[/variable]")
 
     return path
 
@@ -106,7 +106,9 @@ def checkout(package, reference):
         for p in packages:
             s.update(f"Checking out '{p.name}' to '{reference}'...")
             success = switch_reference(package=p, reference=reference)
-            branch_text = _format_branch(p.branch)
+
+            upd_package = get_package(name=p.name)
+            branch_text = _format_branch(upd_package.branch)
 
             if not success:
                 c.log(f"Failed to checkout '{p.name}'")
@@ -129,10 +131,10 @@ def get(package):
 
     rows = []
 
-    c = console.Console(theme=Theme(table_theme))
     for s in packages:
         branch_text = _format_branch(s.branch)
         path_text = _format_path(s.path)
         rows.append([s.name, s.version, path_text, branch_text])
 
+    c = console.Console(theme=Theme(table_theme))
     ConsolePrinter(console=c).table(header=["Package", "Version", "Location", "Branch"], data=rows)
