@@ -15,7 +15,7 @@ def test_single_service():
     config = Config("tests/fixtures/config.yaml")
 
     assert config.get_service("apache").name == "apache"
-    assert config.get_service("apache").handler == "onedep_manager.tests.test_services.HandlerTest"
+    assert config.get_service("apache").handler == "tests.test_services.HandlerTest"
 
     with pytest.raises(Exception):
         config.get_service("bar")

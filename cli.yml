@@ -1,5 +1,5 @@
 name: onedep_manager
-version: 0.0.1
+version: 0.0.3
 description: Management application for OneDep instances.
 tags: ['onedep', 'management', 'admin']
 authors:
@@ -55,15 +55,19 @@ cli:
     description: Manage OneDep Python packages
     arguments:
       package:
-        description: Package name
+        description: Part of or full package name. If set to 'all', will perform operations on all packages.
         type: string
     commands:
-      upgrade:
-        description: Foobar
+      update:
+        description: Updates a package to the latest version.
       checkout:
-        description: Foobar
-      status:
-        description: Foobar
+        description: Checks out a package to a specific version.
+        arguments:
+          reference:
+            description: The reference to checkout. Can be a tag, branch or commit hash.
+            type: string
+      get:
+        description: Get information of packages.
   instance:
     description: Manage the current OneDep instance
     commands:
