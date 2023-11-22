@@ -19,25 +19,26 @@ def start(service, local):
     """`start` command handler"""
     config = Config()
     c = console.Console()
+    printer = ConsolePrinter(console=c)
 
     if local:
-        logging.info("Starting %s locally", service)
+        printer.info(f"Starting {service} locally")
         dispatcher = LocalDispatcher(config=config)
     else:
+        printer.info(f"Starting {service} on all registered hosts")
         dispatcher = RemoteDispatcher(config=config)
 
     try:
         status = dispatcher.start_service(service)
     except Exception as e:
-        logging.error("Could not start service", exc_info=True)
-        click.echo(f"Could not start service {service}: {e}")
+        printer.error(f"Could not start service {service}: {e}")
         return
 
     rows = []
     for s in status:
         rows.append([s.hostname, str(s.status)])
 
-    ConsolePrinter(console=c).table(header=["Hostname", "Status"], data=rows)
+    printer.table(header=["Hostname", "Status"], data=rows)
 
 
 @services_group.command(name="stop", help="Stop the service on all registered services or locally only.")
@@ -48,25 +49,26 @@ def stop(service, force, local):
     """`stop` command handler"""
     config = Config()
     c = console.Console()
+    printer = ConsolePrinter(console=c)
 
     if local:
-        logging.info("Stopping local instance of %s", service)
+        printer.info(f"Stopping local instance of {service}")
         dispatcher = LocalDispatcher(config=config)
     else:
+        printer.info(f"Stopping {service} on all registered hosts")
         dispatcher = RemoteDispatcher(config=config)
 
     try:
         status = dispatcher.stop_service(service)
     except Exception as e:
-        logging.error("Could not stop service", exc_info=True)
-        click.echo(f"Could not stop service {service}: {e}")
+        printer.error(f"Could not stop service {service}: {e}")
         return
 
     rows = []
     for s in status:
         rows.append([s.hostname, str(s.status)])
 
-    ConsolePrinter(console=c).table(header=["Hostname", "Status"], data=rows)
+    printer.table(header=["Hostname", "Status"], data=rows)
 
 
 @services_group.command(name="restart", help="Restart the service on all registered services or locally only.")
@@ -77,25 +79,26 @@ def restart(service, force, local):
     """`restart` command handler"""
     config = Config()
     c = console.Console()
+    printer = ConsolePrinter(console=c)
 
     if local:
-        logging.info("Restarting local instance of %s", service)
+        printer.info("Restarting local instance of {service}")
         dispatcher = LocalDispatcher(config=config)
     else:
+        printer.info("Restarting {service} on all registered hosts")
         dispatcher = RemoteDispatcher(config=config)
 
     try:
         status = dispatcher.restart_service(service)
     except Exception as e:
-        logging.error("Could not restart service", exc_info=True)
-        click.echo(f"Could not restart service {service}: {e}")
+        printer.error(f"Could not restart service {service}: {e}")
         return
 
     rows = []
     for s in status:
         rows.append([s.hostname, str(s.status)])
 
-    ConsolePrinter(console=c).table(header=["Hostname", "Status"], data=rows)
+    printer.table(header=["Hostname", "Status"], data=rows)
 
 
 @services_group.command(name="status", help="Check the status of a service on all registered services or locally only.")
@@ -105,22 +108,23 @@ def status(service, local):
     """`status` command handler"""
     config = Config()
     c = console.Console()
+    printer = ConsolePrinter(console=c)
 
     if local:
-        logging.info("Checking status of local instance of %s", service)
+        printer.info("Checking status of local instance of {service}")
         dispatcher = LocalDispatcher(config=config)
     else:
+        printer.info("Checking status of {service} on all registered hosts")
         dispatcher = RemoteDispatcher(config=config)
 
     try:
         status = dispatcher.get_status(service)
     except Exception as e:
-        logging.error("Could not get status of service", exc_info=True)
-        click.echo(f"Could not get status of service {service}: {e}")
+        printer.error(f"Could not restart service {service}: {e}")
         return
 
     rows = []
     for s in status:
         rows.append([s.hostname, str(s.status)])
 
-    ConsolePrinter(console=c).table(header=["Hostname", "Status"], data=rows)
+    printer.table(header=["Hostname", "Status"], data=rows)

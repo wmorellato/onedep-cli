@@ -12,6 +12,12 @@ class Printer(ABC):
 
     def table(self, header: list, data: list):
         raise NotImplementedError()
+    
+    def info(self, message):
+        raise NotImplementedError()
+    
+    def error(self, message):
+        raise NotImplementedError()
 
 
 class RawPrinter(Printer):
@@ -50,3 +56,11 @@ class ConsolePrinter(Printer):
             table.add_row(*row)
 
         self.console.print(table)
+
+    # need to find a way to define these styles in a central place
+    # and allow overrides
+    def info(self, message):
+        self.console.print(f"[dark_sea_green4]●[/dark_sea_green4] {message}")
+
+    def error(self, message):
+        self.console.print(f"[indian_red]●[/indian_red] {message}")
