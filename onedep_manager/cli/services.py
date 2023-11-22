@@ -82,10 +82,10 @@ def restart(service, force, local):
     printer = ConsolePrinter(console=c)
 
     if local:
-        printer.info("Restarting local instance of {service}")
+        printer.info(f"Restarting local instance of {service}")
         dispatcher = LocalDispatcher(config=config)
     else:
-        printer.info("Restarting {service} on all registered hosts")
+        printer.info(f"Restarting {service} on all registered hosts")
         dispatcher = RemoteDispatcher(config=config)
 
     try:
@@ -111,10 +111,10 @@ def status(service, local):
     printer = ConsolePrinter(console=c)
 
     if local:
-        printer.info("Checking status of local instance of {service}")
+        printer.info(f"Checking status of local instance of {service}")
         dispatcher = LocalDispatcher(config=config)
     else:
-        printer.info("Checking status of {service} on all registered hosts")
+        printer.info(f"Checking status of {service} on all registered hosts")
         dispatcher = RemoteDispatcher(config=config)
 
     try:

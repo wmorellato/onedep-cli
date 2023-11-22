@@ -1,5 +1,6 @@
-import subprocess
+import time
 import psutil
+import subprocess
 
 from onedep_manager.services.handlers import Handler, Parser
 from onedep_manager.services.schemas import Status
@@ -14,7 +15,7 @@ class ApacheHandler(Handler):
         site_config_dir = self.config.get("TOP_WWPDB_SITE_CONFIG_DIR")
 
         try:
-            subprocess.run([f"{site_config_dir}/apache_config/httpd-opt", "start"], check=True)
+            subprocess.run([f"{site_config_dir}/apache_config/httpd-opt", "start"], check=True, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
         except subprocess.CalledProcessError as e:
             return Status.FAILED
 
@@ -30,6 +31,7 @@ class ApacheHandler(Handler):
 
     def restart(self):
         self.stop()
+        time.sleep(1) # needed this
         return self.start()
 
     def status(self):
