@@ -60,7 +60,7 @@ class ConsolePrinter(Printer):
     # need to find a way to define these styles in a central place
     # and allow overrides
     def info(self, message):
-        self.console.print(f"[dark_sea_green4]●[/dark_sea_green4] {message}")
+        self.console.print(f"[slate_blue3]⬢[/slate_blue3] {message}")
 
     def error(self, message):
-        self.console.print(f"[indian_red]●[/indian_red] {message}")
+        self.console.print(f"[indian_red]⬢[/indian_red] {message}")
