@@ -120,7 +120,7 @@ def status(service, local):
     try:
         status = dispatcher.get_status(service)
     except Exception as e:
-        printer.error(f"Could not restart service {service}: {e}")
+        printer.error(f"Could not get status of service {service}: {e}")
         return
 
     rows = []
