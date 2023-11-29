@@ -44,4 +44,4 @@ class ApacheHandler(Handler):
 
 if __name__ == "__main__":
     handler = ApacheHandler()
-    Parser(handler=handler).run()
+    print(Parser(handler=handler).run())
