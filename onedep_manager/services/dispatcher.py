@@ -16,6 +16,9 @@ from wwpdb.utils.config.ConfigInfo import ConfigInfo, getSiteId
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+paramiko_logger = logging.getLogger("paramiko")
+paramiko_logger.setLevel(logging.ERROR)
+
 
 class Dispatcher(ABC):
     def __init__(self, config: Config) -> None:
