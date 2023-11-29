@@ -130,7 +130,7 @@ class RemoteDispatcher(Dispatcher):
             logger.error("Couldn't connect to host %s", host, exc_info=True)
             return InstanceStatus(hostname=host, status=Status.FAILED)
 
-        status = stdout.read().strip()
+        status = stdout.read().decode("utf-8").strip()
         if Status(status) != Status.RUNNING:
             return InstanceStatus(hostname=host, status=Status.FAILED)
 
