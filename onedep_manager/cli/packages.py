@@ -2,7 +2,7 @@ import click
 from rich import console
 from rich.theme import Theme
 
-from onedep_manager.packages import get_package, get_wwpdb_packages, install_package, switch_reference, pull, clone, ONEDEP_PACKAGES
+from onedep_manager.packages import get_package, get_wwpdb_packages, install_package, switch_reference, pull, clone, setup_pip_env, ONEDEP_PACKAGES
 from onedep_manager.cli.common import ConsolePrinter
 
 from wwpdb.utils.config.ConfigInfo import ConfigInfo
@@ -170,8 +170,10 @@ def install(package, dev):
             if not success:
                 c.log(f"Failed to install '{p}'")
 
-            stripped_name = package.replace("py-wwpdb-utils", "").replace("py-wwpdb-apps", "")
+            stripped_name = package.replace("py-", "").replace("wwpdb_utils_", "wwpdb.utils.").replace("wwpdb_apps_", ".")
             package = get_package(name=stripped_name, branch=True)
-            rows.append([package.name, package.version, package.path, package.branch])
+
+            if package is not None:
+                rows.append([package.name, package.version, package.path, package.branch])
 
     ConsolePrinter(console=c).table(header=["Package", "Version", "Location", "Branch"], data=rows)

@@ -67,9 +67,9 @@ def install_package(source, edit=False):
         if edit:
             subprocess.check_call(["pip", "install", "-U", "-e", source], stdout=fp, stderr=fp)
         else:
-            setup_pip_env()
             subprocess.check_call(["pip", "install", "-U", source], stdout=fp, stderr=fp)
     except Exception as e:
+        logger.error(e)
         return False
     finally:
         fp.close()
@@ -99,6 +99,7 @@ def setup_pip_env(cs_user, cs_pass, cs_url):
         for command in commands:
             subprocess.check_call(command, stdout=fp, stderr=fp)
     except Exception as e:
+        logger.error(e)
         return False
     finally:
         fp.close()
