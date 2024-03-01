@@ -58,6 +58,13 @@ cli:
         description: Part of or full package name. If set to 'all', will perform operations on all packages.
         type: string
     commands:
+      install:
+        description: Installs a package.
+        options:
+          dev:
+            description: If set, will install the package in development mode.
+            type: flag
+            short: d
       update:
         description: Updates a package to the latest version.
       checkout:

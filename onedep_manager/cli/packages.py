@@ -2,7 +2,7 @@ import click
 from rich import console
 from rich.theme import Theme
 
-from onedep_manager.packages import get_package, get_wwpdb_packages, switch_reference, pull
+from onedep_manager.packages import get_package, get_wwpdb_packages, install_package, switch_reference, pull, clone, ONEDEP_PACKAGES
 from onedep_manager.cli.common import ConsolePrinter
 
 from wwpdb.utils.config.ConfigInfo import ConfigInfo
@@ -118,7 +118,7 @@ def checkout(package, reference):
     ConsolePrinter(console=c).table(header=["Package", "Version", "Location", "Branch"], data=rows)
 
 
-@packages_group.command(name="get", help="Check the status of a package. If PACKAGE is set to 'all', will perform operations on all packages.")
+@packages_group.command(name="get", help="Checks the status of a package. If PACKAGE is set to 'all', will perform operations on all packages.")
 @click.argument("package")
 def get(package):
     """`get` command handler"""
@@ -134,5 +134,42 @@ def get(package):
         branch_text = _format_branch(s.branch)
         path_text = _format_path(s.path)
         rows.append([s.name, s.version, path_text, branch_text])
+
+    ConsolePrinter(console=c).table(header=["Package", "Version", "Location", "Branch"], data=rows)
+
+
+@packages_group.command(name="install", help="Installs a package")
+@click.argument("package")
+@click.option("-d", "--dev", "dev", is_flag=True, default=False, help="If set, will install the package in development mode.")
+def install(package, dev):
+    """`install` command handler"""
+    if package == "all":
+        packages = ONEDEP_PACKAGES
+    else:
+        packages = [package]
+
+    rows = []
+
+    c = console.Console(theme=Theme(table_theme))
+    with c.status("Installing packages", spinner_style="green") as s:
+        for p in packages:
+            s.update(f"Installing '{p}'...")
+
+            if dev:
+                ppath = clone(package_name=p, reference="develop")
+                if ppath is None:
+                    c.log(f"Failed to install '{p}'")
+                    continue
+
+                success = install_package(ppath, edit=True)
+            else:
+                success = install_package(p)
+
+            if not success:
+                c.log(f"Failed to install '{p}'")
+
+            stripped_name = package.replace("py-wwpdb-utils", "").replace("py-wwpdb-apps", "")
+            package = get_package(name=stripped_name, branch=True)
+            rows.append([package.name, package.version, package.path, package.branch])
 
     ConsolePrinter(console=c).table(header=["Package", "Version", "Location", "Branch"], data=rows)

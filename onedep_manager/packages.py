@@ -7,6 +7,47 @@ import urllib.parse
 from importlib import metadata
 
 from onedep_manager.schemas import PackageDistribution
+from onedep_manager.config import Config
+
+logger = logging.getLogger(__name__)
+
+
+ONEDEP_PACKAGES = [
+    "py-wwpdb_utils_config",
+    "py-wwpdb_io",
+    "py-wwpdb_utils_db",
+    "py-wwpdb_utils_detach",
+    "py-wwpdb_utils_dp",
+    "py-wwpdb_utils_emdb",
+    "py-wwpdb_utils_markdown_wrapper",
+    "py-wwpdb_utils_message_queue",
+    "py-wwpdb_utils_align",
+    "py-wwpdb_utils_nmr",
+    "py-wwpdb_utils_cc_dict_util",
+    "py-wwpdb_utils_oe_util",
+    "py-wwpdb_utils_seqdb_v2",
+    "py-wwpdb_utils_session",
+    "py-wwpdb_utils_wf",
+    "py-wwpdb_utils_ws_utils",
+    "py-wwpdb_apps_wf_engine",
+    "py-wwpdb_apps_deposit",
+    "py-wwpdb_apps_validation",
+    "py-wwpdb_apps_ann_tasks_v2",
+    "py-wwpdb_apps_ccmodule",
+    "py-wwpdb_apps_chemeditor",
+    "py-wwpdb_apps_chem_ref_data",
+    "py-wwpdb_apps_content_ws_server",
+    "py-wwpdb_apps_editormodule",
+    "py-wwpdb_apps_entity_transform",
+    "py-wwpdb_apps_msgmodule",
+    "py-wwpdb_apps_releasemodule",
+    "py-wwpdb_apps_seqmodule",
+    "py-wwpdb_apps_val_ws_server",
+    "py-wwpdb_apps_workmanager",
+    "py-wwpdb_apps_site_admin",
+    "py-wwpdb_apps_val_rel",
+    "py-wwpdb_utils_letters",
+]
 
 
 def install_package(source, edit=False):
@@ -26,12 +67,42 @@ def install_package(source, edit=False):
         if edit:
             subprocess.check_call(["pip", "install", "-U", "-e", source], stdout=fp, stderr=fp)
         else:
+            setup_pip_env()
             subprocess.check_call(["pip", "install", "-U", source], stdout=fp, stderr=fp)
     except Exception as e:
         return False
     finally:
         fp.close()
-    
+
+    return True
+
+
+def setup_pip_env(cs_user, cs_pass, cs_url):
+    """
+    Setup the pip environment with our own distribution urls.
+
+    Returns:
+        bool: True if the environment was setup successfully, False otherwise.
+    """
+    fp = open("pip.log", "w")
+
+    urlreq = urllib.parse.urlparse(cs_url)
+    urlpath = "{}://{}:{}@{}{}/dist/simple/".format(urlreq.scheme, cs_user, cs_pass, urlreq.netloc, urlreq.path)
+
+    commands = [
+        ["pip", "config", "--site", "set", "global.trusted-host", urlreq.netloc],
+        ["pip", "config", "--site", "set", "global.extra-index-url", "{} https://pypi.anaconda.org/OpenEye/simple".format(urlpath)],
+        ["pip", "config", "--site", "set", "global.no-cache-dir", "false"],
+    ]
+
+    try:
+        for command in commands:
+            subprocess.check_call(command, stdout=fp, stderr=fp)
+    except Exception as e:
+        return False
+    finally:
+        fp.close()
+
     return True
 
 
@@ -146,3 +217,25 @@ def pull(package: PackageDistribution):
         return False
 
     return install_package(package.path, edit=package.editable)
+
+
+def clone(package_name: str, reference="develop"):
+    if package_name not in ONEDEP_PACKAGES:
+        logger.error(f"Package {package_name} is not a OneDep package.")
+        return False
+
+    config = Config()
+    source_dir = os.path.join(config.from_site("SITE_DEPLOY_PATH"), "source")
+
+    if not os.path.exists(source_dir):
+        os.makedirs(source_dir)
+
+    package_url = f"https://github.com/{config.GITHUB_PACKAGE_HOST}/{package_name}.git"
+
+    try:
+        repo = git.Repo.clone_from(package_url, source_dir)
+        repo.git.checkout(reference)
+    except:
+        return None
+
+    return os.path.join(source_dir, package_name)

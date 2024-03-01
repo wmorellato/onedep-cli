@@ -6,10 +6,14 @@ from wwpdb.utils.config.ConfigInfo import ConfigInfo
 
 
 class Config:
+    GITHUB_PACKAGE_HOST = "wwPDB"
+
     def __init__(self, config_file: str = None):
+        self._odconfig = ConfigInfo()
+        self.ODM_CONFIG_DIR = os.path.join(self._odconfig.get("TOP_SOFTWARE_DIR"), "odm")
+
         if not config_file:
-            onedep_root = ConfigInfo().get("TOP_SOFTWARE_DIR")
-            config_file = os.path.join(onedep_root, "odm", "config.yaml")
+            config_file = os.path.join(self.ODM_CONFIG_DIR, "config.yaml")
 
         self._config_file = config_file
         self._config = self._load_config()
@@ -33,3 +37,6 @@ class Config:
                 return Service(**service)
 
         raise Exception(f"Service {name} not found in config")
+
+    def from_site(self, variable: str):
+        return self._odconfig.get(variable)
