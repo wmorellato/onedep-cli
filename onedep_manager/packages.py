@@ -221,10 +221,6 @@ def pull(package: PackageDistribution):
 
 
 def clone(package_name: str, reference="develop"):
-    if package_name not in ONEDEP_PACKAGES:
-        logger.error(f"Package {package_name} is not a OneDep package.")
-        return False
-
     config = Config()
     source_dir = os.path.join(config.from_site("SITE_DEPLOY_PATH"), "source")
 
