@@ -24,7 +24,7 @@ def get(variable):
     for v in variable:
         vcap = v.upper()
         value = ci.get(vcap)
-        rows.append([vcap, value])
+        rows.append([vcap, str(value)])
 
     c = Console()
     ConsolePrinter(console=c).table(header=["Variable", "Value"], data=rows)

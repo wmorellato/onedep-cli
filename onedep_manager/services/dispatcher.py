@@ -16,6 +16,9 @@ from wwpdb.utils.config.ConfigInfo import ConfigInfo, getSiteId
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+paramiko_logger = logging.getLogger("paramiko")
+paramiko_logger.setLevel(logging.ERROR)
+
 
 class Dispatcher(ABC):
     def __init__(self, config: Config) -> None:
@@ -127,7 +130,7 @@ class RemoteDispatcher(Dispatcher):
             logger.error("Couldn't connect to host %s", host, exc_info=True)
             return InstanceStatus(hostname=host, status=Status.FAILED)
 
-        status = stdout.strip()
+        status = stdout.read().decode("utf-8").strip()
         if Status(status) != Status.RUNNING:
             return InstanceStatus(hostname=host, status=Status.FAILED)
 

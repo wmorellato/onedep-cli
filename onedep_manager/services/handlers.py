@@ -31,7 +31,7 @@ class Parser:
         self._handler = handler
     
     def run(self) -> Status:
-        command = sys.argv[1]
+        command = Commands(sys.argv[1])
 
         if command == Commands.START:
             return self._handler.start()
@@ -41,5 +41,3 @@ class Parser:
             return self._handler.restart()
         elif command == Commands.STATUS:
             return self._handler.status()
-        else:
-            raise Exception("Unknown command")

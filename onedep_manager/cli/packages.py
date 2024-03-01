@@ -60,6 +60,7 @@ def update(package):
     rows = []
 
     c = console.Console(theme=Theme(table_theme))
+    printer = ConsolePrinter(console=c)
     with c.status("Checking out packages", spinner_style="green") as s:
         for p in packages:
             s.update(f"Updating '{p.name}'...")
@@ -68,7 +69,7 @@ def update(package):
             path_text = _format_path(p.path)
 
             if not success:
-                c.log(f"Failed to update '{p.name}'")
+                printer.error(f"Failed to update '{p.name}'")
                 rows.append([p.name, f"[blink]{p.version}[/blink]", path_text, p.branch])
                 continue
 
@@ -86,7 +87,7 @@ def update(package):
 
             rows.append([p.name, version_text, path_text, p.branch])
 
-    ConsolePrinter(console=c).table(header=["Package", "Version", "Location", "Branch"], data=rows)
+    printer.table(header=["Package", "Version", "Location", "Branch"], data=rows)
 
 
 @packages_group.command(name="checkout", help="Checks out a package to a specific version. If PACKAGE is set to 'all', will perform operations on all packages. REFERENCE can be a tag, branch or commit hash.")
@@ -102,6 +103,7 @@ def checkout(package, reference):
     rows = []
 
     c = console.Console(theme=Theme(table_theme))
+    printer = ConsolePrinter(console=c)
     with c.status("Checking out packages", spinner_style="green") as s:
         for p in packages:
             s.update(f"Checking out '{p.name}' to '{reference}'...")
@@ -111,13 +113,13 @@ def checkout(package, reference):
             branch_text = _format_branch(upd_package.branch)
 
             if not success:
-                c.log(f"Failed to checkout '{p.name}'")
+                printer.error(f"Failed to checkout '{p.name}'")
                 branch_text = f"[blink]{branch_text}[/blink]"
 
             path_text = _format_path(p.path)
             rows.append([p.name, p.version, path_text, branch_text])
 
-    ConsolePrinter(console=c).table(header=["Package", "Version", "Location", "Branch"], data=rows)
+    printer.table(header=["Package", "Version", "Location", "Branch"], data=rows)
 
 
 @packages_group.command(name="get", help="Checks the status of a package. If PACKAGE is set to 'all', will perform operations on all packages.")
@@ -177,3 +179,5 @@ def install(package, dev):
                 rows.append([package.name, package.version, package.path, package.branch])
 
     ConsolePrinter(console=c).table(header=["Package", "Version", "Location", "Branch"], data=rows)
+    printer = ConsolePrinter(console=c)
+    printer.table(header=["Package", "Version", "Location", "Branch"], data=rows)
