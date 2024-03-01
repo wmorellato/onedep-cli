@@ -147,21 +147,27 @@ def get(package):
 @click.option("-d", "--dev", "dev", is_flag=True, default=False, help="If set, will install the package in development mode.")
 def install(package, dev):
     """`install` command handler"""
+    c = console.Console(theme=Theme(table_theme))
+    printer = ConsolePrinter(console=c)
+
     if package == "all":
         packages = ONEDEP_PACKAGES
     else:
+        if package not in ONEDEP_PACKAGES:
+            printer.error(f"Package '{package}' is not a OneDep package.")
+            return
+
         packages = [package]
 
     rows = []
 
-    c = console.Console(theme=Theme(table_theme))
-    printer = ConsolePrinter(console=c)
     with c.status("Installing packages", spinner_style="green") as s:
         for p in packages:
             s.update(f"Installing '{p}'...")
 
             if dev:
-                ppath = clone(package_name=p, reference="develop")
+                pname = f"py-{p.replace('.', '_')}"
+                ppath = clone(package_name=pname, reference="develop")
                 if ppath is None:
                     printer.error(f"Failed to install '{p}'")
                     continue
@@ -173,8 +179,7 @@ def install(package, dev):
             if not success:
                 printer.error(f"Failed to install '{p}'")
 
-            stripped_name = package.replace("py-", "").replace("wwpdb_utils_", "wwpdb.utils.").replace("wwpdb_apps_", ".")
-            package = get_package(name=stripped_name, branch=True)
+            package = get_package(name=p, branch=True)
 
             if package is not None:
                 rows.append([package.name, package.version, package.path, package.branch])
