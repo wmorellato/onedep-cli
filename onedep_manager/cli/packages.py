@@ -155,6 +155,7 @@ def install(package, dev):
     rows = []
 
     c = console.Console(theme=Theme(table_theme))
+    printer = ConsolePrinter(console=c)
     with c.status("Installing packages", spinner_style="green") as s:
         for p in packages:
             s.update(f"Installing '{p}'...")
@@ -162,7 +163,7 @@ def install(package, dev):
             if dev:
                 ppath = clone(package_name=p, reference="develop")
                 if ppath is None:
-                    c.log(f"Failed to install '{p}'")
+                    printer.error(f"Failed to install '{p}'")
                     continue
 
                 success = install_package(ppath, edit=True)
@@ -170,7 +171,7 @@ def install(package, dev):
                 success = install_package(p)
 
             if not success:
-                c.log(f"Failed to install '{p}'")
+                printer.error(f"Failed to install '{p}'")
 
             stripped_name = package.replace("py-", "").replace("wwpdb_utils_", "wwpdb.utils.").replace("wwpdb_apps_", ".")
             package = get_package(name=stripped_name, branch=True)
@@ -178,6 +179,4 @@ def install(package, dev):
             if package is not None:
                 rows.append([package.name, package.version, package.path, package.branch])
 
-    ConsolePrinter(console=c).table(header=["Package", "Version", "Location", "Branch"], data=rows)
-    printer = ConsolePrinter(console=c)
     printer.table(header=["Package", "Version", "Location", "Branch"], data=rows)
