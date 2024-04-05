@@ -64,7 +64,11 @@ def update(package):
     with c.status("Checking out packages", spinner_style="green") as s:
         for p in packages:
             s.update(f"Updating '{p.name}'...")
-            success = pull(package=p)
+
+            if p.editable:
+                success = install_package(p.name)
+            else:
+                success = pull(package=p)
 
             path_text = _format_path(p.path)
 

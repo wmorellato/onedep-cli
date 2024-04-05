@@ -70,12 +70,11 @@ def test_install_dev(monkeypatch, mock_config):
         lambda name=None, branch=None: PackageDistribution(name="wwpdb.utils.config", version="0.1.0", path="/foo/bar/wwpdb.utils.config", branch="master"),
     )
 
-    monkeypatch.setattr("onedep_manager.packages.clone",
+    monkeypatch.setattr("onedep_manager.cli.packages.clone",
                         lambda package_name, reference="develop": "/foo/bar/wwpdb.utils.config")
 
     runner = CliRunner()
     result = runner.invoke(install, ["-d", "wwpdb.utils.config"])
-    print(result.output)
 
     assert result.exit_code == 0
     assert "wwpdb.utils.config" in result.output
@@ -95,7 +94,6 @@ def test_install(monkeypatch, mock_config):
 
     runner = CliRunner()
     result = runner.invoke(install, ["wwpdb.utils.config"])
-    print(result.output)
 
     assert result.exit_code == 0
     assert "wwpdb.utils.config" in result.output
