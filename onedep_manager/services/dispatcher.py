@@ -13,9 +13,7 @@ from onedep_manager.services.schemas import Status, InstanceStatus, Commands
 from wwpdb.utils.config.ConfigInfo import ConfigInfo, getSiteId
 
 
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-
+logger = logging.getLogger(__name__)
 paramiko_logger = logging.getLogger("paramiko")
 paramiko_logger.setLevel(logging.ERROR)
 

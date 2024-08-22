@@ -66,14 +66,15 @@ def update(package):
             s.update(f"Updating '{p.name}'...")
 
             if p.editable:
-                success = install_package(p.name)
-            else:
                 success = pull(package=p)
+                success = install_package(p.path, edit=True)
+            else:
+                success = install_package(p.name)
 
             path_text = _format_path(p.path)
 
             if not success:
-                printer.error(f"Failed to update '{p.name}'")
+                printer.error(f"Failed to update '{p.name}'. Check logs for more information.")
                 rows.append([p.name, f"[blink]{p.version}[/blink]", path_text, p.branch])
                 continue
 
@@ -110,6 +111,10 @@ def checkout(package, reference):
     printer = ConsolePrinter(console=c)
     with c.status("Checking out packages", spinner_style="green") as s:
         for p in packages:
+            if not p.editable:
+                printer.error(f"Package '{p.name}' is not in editable mode. Skipping...")
+                continue
+
             s.update(f"Checking out '{p.name}' to '{reference}'...")
             success = switch_reference(package=p, reference=reference)
 

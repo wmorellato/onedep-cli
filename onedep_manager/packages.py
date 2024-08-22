@@ -9,7 +9,12 @@ from importlib import metadata
 from onedep_manager.schemas import PackageDistribution
 from onedep_manager.config import Config
 
+
+lconfig = Config()
 logger = logging.getLogger(__name__)
+log_file = os.path.join(lconfig.ODM_CONFIG_DIR, "packages.log")
+file_handler = logging.FileHandler(log_file)
+logger.addHandler(file_handler)
 
 
 ONEDEP_PACKAGES = [
@@ -50,29 +55,33 @@ ONEDEP_PACKAGES = [
 ]
 
 
-def install_package(source, edit=False):
+def install_package(source, version="latest", edit=False):
     """
     Install a package from either a package name or a path to a repository.
 
     Args:
         source (str): The name of the package or the path to the repository.
+        version (str, optional): The version of the package to install. Defaults to "latest".
         edit (bool, optional): Whether to install the package in editable mode. Defaults to False.
 
     Returns:
         bool: True if the package was installed successfully, False otherwise.
     """
-    fp = open("pip.log", "w")
+
+    if version != "latest":
+        source = f"{source}=={version}"
 
     try:
         if edit:
-            subprocess.check_call(["pip", "install", "-U", "-e", source], stdout=fp, stderr=fp)
+            result = subprocess.run(["pip", "install", "-U", "-e", source], text=True, capture_output=True)
         else:
-            subprocess.check_call(["pip", "install", "-U", source], stdout=fp, stderr=fp)
+            result = subprocess.run(["pip", "install", "-U", source], text=True, capture_output=True)
+
+        logger.debug(result.stdout.strip())
+        logger.debug(result.stderr.strip())
     except Exception as e:
         logger.error(e)
         return False
-    finally:
-        fp.close()
 
     return True
 
@@ -84,8 +93,6 @@ def setup_pip_env(cs_user, cs_pass, cs_url):
     Returns:
         bool: True if the environment was setup successfully, False otherwise.
     """
-    fp = open("pip.log", "w")
-
     urlreq = urllib.parse.urlparse(cs_url)
     urlpath = "{}://{}:{}@{}{}/dist/simple/".format(urlreq.scheme, cs_user, cs_pass, urlreq.netloc, urlreq.path)
 
@@ -97,12 +104,13 @@ def setup_pip_env(cs_user, cs_pass, cs_url):
 
     try:
         for command in commands:
-            subprocess.check_call(command, stdout=fp, stderr=fp)
+            output = subprocess.check_call(command, stdout=fp, stderr=fp)
+        
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug(output)
     except Exception as e:
         logger.error(e)
         return False
-    finally:
-        fp.close()
 
     return True
 
@@ -144,19 +152,6 @@ def _get_distribution_path(distribution: metadata.Distribution):
     return path
 
 
-def _get_branch(path):
-    if path is None:
-        return None
-
-    try:
-        repo = git.Repo(path)
-        return repo.active_branch.name
-    except TypeError:
-        return repo.head.name
-    except:
-        return None
-
-
 def get_package(name, branch=True):
     try:
         distribution = metadata.distribution(name)
@@ -178,8 +173,7 @@ def get_wwpdb_packages(name="wwpdb", branch=True):
     for distribution in distributions:
         package_name = distribution.metadata["Name"] # had some issues accessing distribution.name directly
 
-        # maybe get the list of wwpdb packages from a config file?
-        if not package_name.startswith("wwpdb"):
+        if package_name not in ONEDEP_PACKAGES:
             continue
 
         if name not in package_name:
@@ -193,11 +187,20 @@ def get_wwpdb_packages(name="wwpdb", branch=True):
         yield PackageDistribution(name=package_name, version=package_version, path=package_path, branch=package_branch, editable=package_editable)
 
 
-def switch_reference(package: PackageDistribution, reference="master"):
-    # stil need to check if package is in edit mode
-    if package.branch is None:
-        return False
+def _get_branch(path):
+    if path is None:
+        return None
 
+    try:
+        repo = git.Repo(path)
+        return repo.active_branch.name
+    except TypeError:
+        return repo.head.name
+    except:
+        return None
+
+
+def switch_reference(package: PackageDistribution, reference="master"):
     try:
         repo = git.Repo(package.path)
         repo.git.checkout(reference)
@@ -208,16 +211,13 @@ def switch_reference(package: PackageDistribution, reference="master"):
 
 
 def pull(package: PackageDistribution):
-    if package.branch is None:
-        return False
-
     try:
         repo = git.Repo(package.path)
         repo.git.pull("origin", package.branch)
     except:
         return False
 
-    return install_package(package.path, edit=package.editable)
+    return True
 
 
 def clone(package_name: str, reference="develop"):
