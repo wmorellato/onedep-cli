@@ -93,6 +93,17 @@ cli:
           variable:
             description: The variable name to read
             type: string
+      edit:
+        description: Edit the configuration file
+        options:
+          site:
+            description: wwPDB site ID (e.g. WWPDB_DEPLOY_TEST_RU). Defaults to the current site.
+            type: string
+            short: i
+          rebuild:
+            description: If set, will rebuild the configuration after editing.
+            type: flag
+            short: r
       rebuild:
         description: Rebuild the configuration
         arguments:
