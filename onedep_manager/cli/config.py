@@ -61,8 +61,9 @@ def edit(site, rebuild):
     ci = ConfigInfo(siteId=site)
     site_config_path = ci.get("WWPDB_SITE_CONFIG_DIR")
 
-    if not site_config_path or os.path.exists(site_config_path):
-        raise Exception(f"Site configuration for {site} does not exist")
+    if not site_config_path or not os.path.exists(site_config_path):
+        click.echo(f"Site configuration for {site} does not exist")
+        return
 
     site_config_file = os.path.join(site_config_path, f"{site}/site.cfg")
     # put the file viewer in the config
