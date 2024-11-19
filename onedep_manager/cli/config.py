@@ -1,10 +1,12 @@
+import os
 import sys
 import click
+import subprocess
 from rich.console import Console
 
 from onedep_manager.cli.common import ConsolePrinter
 
-from wwpdb.utils.config.ConfigInfo import ConfigInfo
+from wwpdb.utils.config.ConfigInfo import ConfigInfo, getSiteId
 from wwpdb.utils.config.ConfigInfoFileExec import ConfigInfoFileExec
 from wwpdb.utils.config.ConfigInfoShellExec import ConfigInfoShellExec
 
@@ -46,3 +48,22 @@ def load(site_id, location):
     """`load` command handler"""
     ci = ConfigInfoShellExec(siteLoc=location, siteId=site_id, cacheFlag=False, log=sys.stderr)
     ci.shellConfig()
+
+
+@config_group.command(name="edit", help="Edit the configuration file")
+@click.option("-i", "--site", "site", help="wwPDB site ID (e.g. WWPDB_DEPLOY_TEST_RU). Defaults to the current site.")
+@click.option("-r", "--rebuild", "rebuild", help="If set, will rebuild the configuration after editing.")
+def edit(site, rebuild):
+    """`edit` command handler"""
+    if not site:
+        site = getSiteId()
+    
+    ci = ConfigInfo(siteId=site)
+    site_config_path = ci.get("WWPDB_SITE_CONFIG_DIR")
+
+    if not site_config_path or os.path.exists(site_config_path):
+        raise Exception(f"Site configuration for {site} does not exist")
+
+    site_config_file = os.path.join(site_config_path, f"{site}/site.cfg")
+    # put the file viewer in the config
+    subprocess.run(["vi", site_config_file])
