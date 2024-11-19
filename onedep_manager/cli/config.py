@@ -65,6 +65,6 @@ def edit(site, rebuild):
         click.echo(f"Site configuration for {site} does not exist")
         return
 
-    site_config_file = os.path.join(site_config_path, f"{site}/site.cfg")
+    site_config_file = os.path.join(site_config_path, "site.cfg")
     # put the file viewer in the config
     subprocess.run(["vi", site_config_file])
