@@ -70,6 +70,6 @@ def edit(site, rebuild):
         return
 
     site_config_file = os.path.join(site_config_path, "site.cfg")
-    printer.info(f"Editing {site_config_file})")
+    printer.info(f"Editing {site_config_file}")
     # put the file viewer in the config
     subprocess.run(["vi", site_config_file])
