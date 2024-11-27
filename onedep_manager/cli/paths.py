@@ -16,7 +16,7 @@ def paths_group():
 
 
 @paths_group.command(name="get", help="Get the current paths")
-@click.argument("type")
+@click.argument("type_")
 @click.argument("identifier")
 @click.option("-i", "--site", "site", help="wwPDB site ID (e.g. WWPDB_DEPLOY_TEST_RU). Defaults to the current site.")
 def get(type_, identifier, site):
