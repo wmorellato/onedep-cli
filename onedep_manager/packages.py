@@ -13,7 +13,11 @@ from onedep_manager.config import Config
 lconfig = Config()
 logger = logging.getLogger(__name__)
 log_file = os.path.join(lconfig.ODM_CONFIG_DIR, "packages.log")
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
 file_handler = logging.FileHandler(log_file)
+file_handler.setLevel(logging.DEBUG)
+logger.addHandler(console_handler)
 logger.addHandler(file_handler)
 
 
@@ -104,10 +108,10 @@ def setup_pip_env(cs_user, cs_pass, cs_url):
 
     try:
         for command in commands:
-            output = subprocess.check_call(command, stdout=fp, stderr=fp)
-        
-            if logger.isEnabledFor(logging.DEBUG):
-                logger.debug(output)
+            result = subprocess.run(command, text=True, capture_output=True)
+
+            logger.debug(result.stdout.strip())
+            logger.debug(result.stderr.strip())
     except Exception as e:
         logger.error(e)
         return False
@@ -193,7 +197,8 @@ def _get_branch(path):
 
     try:
         repo = git.Repo(path)
-        return repo.active_branch.name
+        is_dirty = "*" if repo.is_dirty() else ""
+        return f"{repo.active_branch.name}{is_dirty}"
     except TypeError:
         return repo.head.name
     except:
