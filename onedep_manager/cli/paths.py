@@ -44,11 +44,11 @@ def get(type_, identifier, site):
     
     if type_ == 'upload':
         deposit_path = config.from_site("SITE_ARCHIVE_STORAGE_PATH") # is there a better way to get this?
-        print(os.path.join(deposit_path, "temp_files", "deposition_uploads", identifier))
+        print(os.path.join(deposit_path, "deposit", "temp_files", "deposition_uploads", identifier))
     
     if type_ == 'pickles':
         deposit_path = config.from_site("SITE_ARCHIVE_STORAGE_PATH") # is there a better way to get this?
-        print(os.path.join(deposit_path, "temp_files", "deposition-v-200", identifier))
+        print(os.path.join(deposit_path, "deposit", "temp_files", "deposition-v-200", identifier))
 
     if type_ == 'wfinst':
         dep_id = identifier.split(":")[0]
@@ -56,10 +56,10 @@ def get(type_, identifier, site):
         print(pathinfo.getInstancePath(dataSetId=dep_id, wfInstanceId=wf_instance))
 
     if type_ == 'session':
-        print(pathinfo.getDirPath(dataSetId="", fileSource="session"))
+        print(os.path.join(config.from_site("SITE_WEB_APPS_SESSIONS_PATH"), identifier))
 
     if type_ == 'ccid':
-        print(ccdpathinfo.getFilePath(dataSetId=identifier))
+        print(ccdpathinfo.getFilePath(idCode=identifier))
 
     if type_ == 'package':
         print(get_package(identifier).path)
