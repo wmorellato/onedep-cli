@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "onedep_manager"
-version = "0.0.1"
+version = "0.2.0"
 description = "Management application for OneDep instances."
 authors = ["Weslley Morellato Bueno <wbueno@ebi.ac.uk>"]
 

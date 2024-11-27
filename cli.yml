@@ -1,5 +1,5 @@
 name: onedep_manager
-version: 0.0.1
+version: 0.2.0
 description: Management application for OneDep instances.
 tags: ['onedep', 'management', 'admin']
 authors:
@@ -55,15 +55,26 @@ cli:
     description: Manage OneDep Python packages
     arguments:
       package:
-        description: Package name
+        description: Part of or full package name. If set to 'all', will perform operations on all packages.
         type: string
     commands:
-      upgrade:
-        description: Foobar
+      install:
+        description: Installs a package.
+        options:
+          dev:
+            description: If set, will install the package in development mode.
+            type: flag
+            short: d
+      update:
+        description: Updates a package to the latest version.
       checkout:
-        description: Foobar
-      status:
-        description: Foobar
+        description: Checks out a package to a specific version.
+        arguments:
+          reference:
+            description: The reference to checkout. Can be a tag, branch or commit hash.
+            type: string
+      get:
+        description: Get information of packages.
   instance:
     description: Manage the current OneDep instance
     commands:
@@ -82,6 +93,17 @@ cli:
           variable:
             description: The variable name to read
             type: string
+      edit:
+        description: Edit the configuration file
+        options:
+          site:
+            description: wwPDB site ID (e.g. WWPDB_DEPLOY_TEST_RU). Defaults to the current site.
+            type: string
+            short: i
+          rebuild:
+            description: If set, will rebuild the configuration after editing.
+            type: flag
+            short: r
       rebuild:
         description: Rebuild the configuration
         arguments:
@@ -100,3 +122,21 @@ cli:
           location:
             description: wwPDB location ID (e.g. pdbe, pdbj, rcsb-east, ... )
             type: string
+  paths:
+    description: Get common OneDep paths
+    commands:
+      get:
+        description: Get the current paths
+        arguments:
+          type:
+            description: The type of path to get
+            type: string
+            choices: ['tempdep', 'deposit', 'archive', 'upload', 'wfinst', 'session', 'ccid', 'package', 'wfxml', 'tool']
+          identifier:
+            description: The identifier of the path to get
+            type: string
+        options:
+          site:
+            description: wwPDB site ID (e.g. WWPDB_DEPLOY_TEST_RU). Defaults to the current site.
+            type: string
+            short: i
