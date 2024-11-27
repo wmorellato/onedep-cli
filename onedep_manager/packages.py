@@ -13,6 +13,7 @@ from onedep_manager.config import Config
 lconfig = Config()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+logger.propagate = False
 log_file = os.path.join(lconfig.ODM_CONFIG_DIR, "packages.log")
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.INFO)
