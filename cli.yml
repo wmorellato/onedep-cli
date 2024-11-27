@@ -1,5 +1,5 @@
 name: onedep_manager
-version: 0.0.3
+version: 0.2.0
 description: Management application for OneDep instances.
 tags: ['onedep', 'management', 'admin']
 authors:
@@ -122,3 +122,21 @@ cli:
           location:
             description: wwPDB location ID (e.g. pdbe, pdbj, rcsb-east, ... )
             type: string
+  paths:
+    description: Get common OneDep paths
+    commands:
+      get:
+        description: Get the current paths
+        arguments:
+          type:
+            description: The type of path to get
+            type: string
+            choices: ['tempdep', 'deposit', 'archive', 'upload', 'wfinst', 'session', 'ccid', 'package', 'wfxml', 'tool']
+          identifier:
+            description: The identifier of the path to get
+            type: string
+        options:
+          site:
+            description: wwPDB site ID (e.g. WWPDB_DEPLOY_TEST_RU). Defaults to the current site.
+            type: string
+            short: i

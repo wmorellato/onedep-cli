@@ -3,7 +3,6 @@ import sys
 import click
 import subprocess
 from rich.console import Console
-from rich.theme import Theme
 
 from onedep_manager.cli.common import ConsolePrinter
 
