@@ -6,7 +6,8 @@ from onedep_manager.cli.common import ConsolePrinter
 from onedep_manager.config import Config
 from onedep_manager.packages import get_package
 
-from wwpdb.io.locator.PathInfo import PathInfo, ChemRefPathInfo
+from wwpdb.io.locator.PathInfo import PathInfo
+from wwpdb.io.locator.ChemRefPathInfo import ChemRefPathInfo
 
 
 @click.group(name="paths", help="Get common OneDep paths")
