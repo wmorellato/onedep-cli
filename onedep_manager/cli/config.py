@@ -3,6 +3,7 @@ import sys
 import click
 import subprocess
 from rich.console import Console
+from rich.theme import Theme
 
 from onedep_manager.cli.common import ConsolePrinter
 
@@ -55,6 +56,9 @@ def load(site_id, location):
 @click.option("-r", "--rebuild", "rebuild", help="If set, will rebuild the configuration after editing.")
 def edit(site, rebuild):
     """`edit` command handler"""
+    c = Console()
+    printer = ConsolePrinter(console=c)
+
     if not site:
         site = getSiteId()
     
@@ -62,9 +66,10 @@ def edit(site, rebuild):
     site_config_path = ci.get("WWPDB_SITE_CONFIG_DIR")
 
     if not site_config_path or not os.path.exists(site_config_path):
-        click.echo(f"Site configuration for {site} does not exist")
+        printer.error(f"Site configuration for {site} does not exist")
         return
 
     site_config_file = os.path.join(site_config_path, "site.cfg")
+    printer.info(f"Editing {site_config_file})")
     # put the file viewer in the config
     subprocess.run(["vi", site_config_file])
