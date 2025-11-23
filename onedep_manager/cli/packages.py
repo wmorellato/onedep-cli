@@ -43,6 +43,13 @@ def _format_path(path):
     return path
 
 
+def _get_packages_by_name(package):
+    """Helper to get packages based on 'all' or specific name"""
+    if package == "all":
+        return get_wwpdb_packages(branch=True)
+    return get_wwpdb_packages(name=package, branch=True)
+
+
 @click.group(name="packages", help="Manage OneDep Python packages")
 def packages_group():
     """`packages` command group"""
@@ -52,11 +59,7 @@ def packages_group():
 @click.argument("package")
 def update(package):
     """`update` command handler"""
-    if package == "all":
-        packages = get_wwpdb_packages(branch=True)
-    else:
-        packages = get_wwpdb_packages(name=package, branch=True)
-
+    packages = _get_packages_by_name(package)
     rows = []
 
     c = console.Console(theme=Theme(table_theme))
@@ -66,7 +69,11 @@ def update(package):
             s.update(f"Updating '{p.name}'...")
 
             if p.editable:
-                success = pull(package=p)
+                pull_success = pull(package=p)
+                if not pull_success:
+                    printer.error(f"Failed to pull '{p.name}'. Check logs for more information.")
+                    rows.append([p.name, f"[blink]{p.version}[/blink]", _format_path(p.path), _format_branch(p.branch)])
+                    continue
                 success = install_package(p.path, edit=True)
             else:
                 success = install_package(p.name)
@@ -75,22 +82,19 @@ def update(package):
 
             if not success:
                 printer.error(f"Failed to update '{p.name}'. Check logs for more information.")
-                rows.append([p.name, f"[blink]{p.version}[/blink]", path_text, p.branch])
+                rows.append([p.name, f"[blink]{p.version}[/blink]", path_text, _format_branch(p.branch)])
                 continue
 
             upd_package = get_package(name=p.name)
 
             if upd_package is None:
+                printer.error(f"Package '{p.name}' not found after update.")
                 version_text = f"[pversion]{p.version}[/pversion] -> [cversion]?[/cversion]"
-                rows.append([p.name, version_text, path_text, p.branch])
+                rows.append([p.name, version_text, path_text, _format_branch(p.branch)])
                 continue
 
-            if p.version != upd_package.version:
-                version_text = f"[pversion]{p.version}[/pversion] -> [cversion]{upd_package.version}[/cversion]"
-            else:
-                version_text = f"[sversion]{p.version}[/sversion]"
-
-            rows.append([p.name, version_text, path_text, p.branch])
+            version_text = f"[pversion]{p.version}[/pversion] -> [cversion]{upd_package.version}[/cversion]" if p.version != upd_package.version else f"[sversion]{p.version}[/sversion]"
+            rows.append([p.name, version_text, path_text, _format_branch(upd_package.branch)])
 
     printer.table(header=["Package", "Version", "Location", "Branch"], data=rows)
 
@@ -100,11 +104,7 @@ def update(package):
 @click.argument("reference")
 def checkout(package, reference):
     """`checkout` command handler"""
-    if package == "all":
-        packages = get_wwpdb_packages(branch=True)
-    else:
-        packages = get_wwpdb_packages(name=package, branch=True)
-
+    packages = _get_packages_by_name(package)
     rows = []
 
     c = console.Console(theme=Theme(table_theme))
@@ -119,14 +119,19 @@ def checkout(package, reference):
             success = switch_reference(package=p, reference=reference)
 
             upd_package = get_package(name=p.name)
+
+            if upd_package is None:
+                printer.error(f"Package '{p.name}' not found after checkout.")
+                continue
+
             branch_text = _format_branch(upd_package.branch)
 
             if not success:
                 printer.error(f"Failed to checkout '{p.name}'")
                 branch_text = f"[blink]{branch_text}[/blink]"
 
-            path_text = _format_path(p.path)
-            rows.append([p.name, p.version, path_text, branch_text])
+            path_text = _format_path(upd_package.path)
+            rows.append([upd_package.name, upd_package.version, path_text, branch_text])
 
     printer.table(header=["Package", "Version", "Location", "Branch"], data=rows)
 
@@ -135,17 +140,13 @@ def checkout(package, reference):
 @click.argument("package")
 def get(package):
     """`get` command handler"""
-    if package == "all":
-        packages = get_wwpdb_packages(branch=True)
-    else:
-        packages = get_wwpdb_packages(name=package, branch=True)
-
+    packages = _get_packages_by_name(package)
     rows = []
 
-    for s in packages:
-        branch_text = _format_branch(s.branch)
-        path_text = _format_path(s.path)
-        rows.append([s.name, s.version, path_text, branch_text])
+    for pkg in packages:
+        branch_text = _format_branch(pkg.branch)
+        path_text = _format_path(pkg.path)
+        rows.append([pkg.name, pkg.version, path_text, branch_text])
 
     c = console.Console(theme=Theme(table_theme))
     ConsolePrinter(console=c).table(header=["Package", "Version", "Location", "Branch"], data=rows)
@@ -171,26 +172,27 @@ def install(package, dev):
     rows = []
 
     with c.status("Installing packages", spinner_style="green") as s:
-        for p in packages:
-            s.update(f"Installing '{p}'...")
+        for pkg_name in packages:
+            s.update(f"Installing '{pkg_name}'...")
 
             if dev:
-                pname = f"py-{p.replace('.', '_')}"
-                ppath = clone(package_name=pname, reference="develop")
-                if ppath is None:
-                    printer.error(f"Failed to install '{p}'")
+                repo_name = f"py-{pkg_name.replace('.', '_')}"
+                pkg_path = clone(package_name=repo_name, reference="develop")
+                if pkg_path is None:
+                    printer.error(f"Failed to clone '{pkg_name}'")
                     continue
 
-                success = install_package(ppath, edit=True)
+                success = install_package(pkg_path, edit=True)
             else:
-                success = install_package(p)
+                success = install_package(pkg_name)
 
             if not success:
-                printer.error(f"Failed to install '{p}'")
+                printer.error(f"Failed to install '{pkg_name}'")
+                continue
 
-            package = get_package(name=p, branch=True)
+            installed_pkg = get_package(name=pkg_name, branch=True)
 
-            if package is not None:
-                rows.append([package.name, package.version, package.path, package.branch])
+            if installed_pkg is not None:
+                rows.append([installed_pkg.name, installed_pkg.version, _format_path(installed_pkg.path), _format_branch(installed_pkg.branch)])
 
     printer.table(header=["Package", "Version", "Location", "Branch"], data=rows)
