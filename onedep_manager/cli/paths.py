@@ -84,11 +84,11 @@ def generate_funcs():
         ('session', 'SESSION', 's', lambda: config.from_site("SITE_WEB_APPS_SESSIONS_PATH")),
         ('upload', 'UPLOAD', 'up', lambda: pi.getDirPath(dataSetId=mock_dep_id, fileSource='uploads').rsplit('/', 1)[0]),
         ('pickles', 'PICKLES', 'pkl', lambda: pi.getDirPath(dataSetId=mock_dep_id, fileSource='pickles').rsplit('/', 1)[0]),
+        ('wfinst', 'WFINST', 'wfi', lambda: pi.getInstancePath(dataSetId=mock_dep_id, wfInstanceId='W_001').rsplit('/', 2)[0]),
     ]
 
     # Special paths that get vi functions or custom handling
     special_path_mappings = [
-        ('wfinst', 'WFINST', 'wfi', lambda: pi.getInstancePath(dataSetId=mock_dep_id, wfInstanceId='W_001').rsplit('/', 2)[0]),
         ('ccid', 'CCID', 'ccid', lambda: ChemRefPathInfo().getFilePath(idCode='ABC').rsplit('/', 2)[0]),
         ('wfxml', 'WFXML', 'wfx', lambda: config.from_site("SITE_WF_XML_PATH")),
     ]
@@ -185,27 +185,6 @@ def generate_funcs():
         "        return 1",
         "    fi",
         "    vi \"$path\"",
-        "}",
-        "",
-    ])
-
-    # viwfi: takes two parameters (dep_id and wfinst_id)
-    lines.extend([
-        "function viwfi() {",
-        "    if [ -z \"$1\" ] || [ -z \"$2\" ]; then",
-        "        echo \"Error: both dep_id and wfinst_id required\"",
-        "        echo \"Usage: viwfi <dep_id> <wfinst_id>\"",
-        "        return 1",
-        "    fi",
-        "    local dep_id=\"$1\"",
-        "    local wfinst_id=\"$2\"",
-        "    local path=\"$ODM_WFINST/$dep_id/$wfinst_id\"",
-        "    if [ ! -d \"$path\" ]; then",
-        "        echo \"Error: directory not found: $path\"",
-        "        return 1",
-        "    fi",
-        "    # Open the directory in vi (will show file browser or fail gracefully)",
-        "    cd \"$path\" && vi .",
         "}",
         "",
     ])
