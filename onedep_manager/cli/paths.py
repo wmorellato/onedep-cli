@@ -120,10 +120,6 @@ def generate_funcs():
     for type_name, var_suffix, func_suffix, _ in regular_path_mappings:
         lines.extend([
             f"function cd{func_suffix}() {{",
-            f"    if [ -z \"$1\" ]; then",
-            f"        echo \"Error: identifier required\"",
-            f"        return 1",
-            f"    fi",
             f"    local path=\"$ODM_{var_suffix}/$1\"",
             f"    if [ ! -d \"$path\" ]; then",
             f"        echo \"Error: directory not found: $path\"",
@@ -138,10 +134,6 @@ def generate_funcs():
     for type_name, var_suffix, func_suffix, _ in regular_path_mappings:
         lines.extend([
             f"function ls{func_suffix}() {{",
-            f"    if [ -z \"$1\" ]; then",
-            f"        echo \"Error: identifier required\"",
-            f"        return 1",
-            f"    fi",
             f"    local path=\"$ODM_{var_suffix}/$1\"",
             f"    if [ ! -d \"$path\" ]; then",
             f"        echo \"Error: directory not found: $path\"",
@@ -155,11 +147,6 @@ def generate_funcs():
     # viwfi: takes two parameters (dep_id and wfinst_id)
     lines.extend([
         "function cdwfi() {",
-        "    if [ -z \"$1\" ] || [ -z \"$2\" ]; then",
-        "        echo \"Error: both dep_id and wfinst_id required\"",
-        "        echo \"Usage: viwfi <dep_id> <wfinst_id>\"",
-        "        return 1",
-        "    fi",
         "    local dep_id=\"$1\"",
         "    local wfinst_id=\"$2\"",
         "    local path=\"$ODM_WFINST/$dep_id/$wfinst_id\"",
@@ -172,11 +159,6 @@ def generate_funcs():
         "}",
         "",
         "function lswfi() {",
-        "    if [ -z \"$1\" ] || [ -z \"$2\" ]; then",
-        "        echo \"Error: both dep_id and wfinst_id required\"",
-        "        echo \"Usage: viwfi <dep_id> <wfinst_id>\"",
-        "        return 1",
-        "    fi",
         "    local dep_id=\"$1\"",
         "    local wfinst_id=\"$2\"",
         "    local path=\"$ODM_WFINST/$dep_id/$wfinst_id\"",
