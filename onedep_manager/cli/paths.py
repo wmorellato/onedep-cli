@@ -71,16 +71,19 @@ def generate_funcs():
     c = Console()
     printer = ConsolePrinter(console=c)
     config = Config()
+    mock_dep_id = "D_000000"
+    pi = PathInfo()
 
     # Define path mappings: (type, variable_suffix, function_suffix, base_path_getter)
     path_mappings = [
-        ('tempdep', 'TEMPDEP', 't', lambda: PathInfo().getTempDepPath(dataSetId='').rsplit('/', 1)[0]),
-        ('deposit', 'DEPOSIT', 'd', lambda: PathInfo().getDepositPath(dataSetId='').rsplit('/', 1)[0]),
-        ('archive', 'ARCHIVE', 'a', lambda: PathInfo().getArchivePath(dataSetId='').rsplit('/', 1)[0]),
+        ('tempdep', 'TEMPDEP', 't', lambda: pi.getTempDepPath(dataSetId=mock_dep_id).rsplit('/', 1)[0]),
+        ('deposit', 'DEPOSIT', 'd', lambda: pi.getDepositPath(dataSetId=mock_dep_id).rsplit('/', 1)[0]),
+        ('deposit', 'DEPOSIT_UI', 'ui', lambda: pi.getDepositUIPath(dataSetId=mock_dep_id).rsplit('/', 1)[0]),
+        ('archive', 'ARCHIVE', 'a', lambda: pi.getArchivePath(dataSetId=mock_dep_id).rsplit('/', 1)[0]),
         ('session', 'SESSION', 's', lambda: config.from_site("SITE_WEB_APPS_SESSIONS_PATH")),
-        ('upload', 'UPLOAD', 'up', lambda: os.path.join(config.from_site("SITE_ARCHIVE_STORAGE_PATH"), "deposit", "temp_files", "deposition_uploads")),
-        ('pickles', 'PICKLES', 'pkl', lambda: os.path.join(config.from_site("SITE_ARCHIVE_STORAGE_PATH"), "deposit", "temp_files", "deposition-v-200")),
-        ('wfinst', 'WFINST', 'wfi', lambda: PathInfo().getInstancePath(dataSetId='', wfInstanceId='').rsplit('/', 2)[0]),
+        ('upload', 'UPLOAD', 'up', lambda: pi.getDirPath(dataSetId=mock_dep_id, fileSource='uploads').rsplit('/', 1)[0]),
+        ('pickles', 'PICKLES', 'pkl', lambda: pi.getDirPath(dataSetId=mock_dep_id, fileSource='pickles').rsplit('/', 1)[0]),
+        ('wfinst', 'WFINST', 'wfi', lambda: pi.getInstancePath(dataSetId=mock_dep_id, wfInstanceId='').rsplit('/', 2)[0]),
         ('ccid', 'CCID', 'ccid', lambda: ChemRefPathInfo().getFilePath(idCode='').rsplit('/', 1)[0]),
         ('wfxml', 'WFXML', 'wfx', lambda: config.from_site("SITE_WF_XML_PATH")),
     ]
