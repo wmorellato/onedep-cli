@@ -83,8 +83,8 @@ def generate_funcs():
         ('session', 'SESSION', 's', lambda: config.from_site("SITE_WEB_APPS_SESSIONS_PATH")),
         ('upload', 'UPLOAD', 'up', lambda: pi.getDirPath(dataSetId=mock_dep_id, fileSource='uploads').rsplit('/', 1)[0]),
         ('pickles', 'PICKLES', 'pkl', lambda: pi.getDirPath(dataSetId=mock_dep_id, fileSource='pickles').rsplit('/', 1)[0]),
-        ('wfinst', 'WFINST', 'wfi', lambda: pi.getInstancePath(dataSetId=mock_dep_id, wfInstanceId='').rsplit('/', 2)[0]),
-        ('ccid', 'CCID', 'ccid', lambda: ChemRefPathInfo().getFilePath(idCode='').rsplit('/', 1)[0]),
+        ('wfinst', 'WFINST', 'wfi', lambda: pi.getInstancePath(dataSetId=mock_dep_id, wfInstanceId='W_001').rsplit('/', 2)[0]),
+        ('ccid', 'CCID', 'ccid', lambda: ChemRefPathInfo().getFilePath(idCode='ABC').rsplit('/', 1)[0]),
         ('wfxml', 'WFXML', 'wfx', lambda: config.from_site("SITE_WF_XML_PATH")),
     ]
 
