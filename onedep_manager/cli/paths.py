@@ -182,7 +182,7 @@ def generate_funcs():
         "    fi",
         "    local id=\"$1\"",
         "    local id_initial=\"${id:0:1}\"",
-        "    local path=\"$ODM_CCID/$id_initial/$id\"",
+        "    local path=\"$ODM_CCID/$id_initial/$id.cif\"",
         "    if [ ! -f \"$path\" ]; then",
         "        echo \"Error: file not found: $path\"",
         "        return 1",
