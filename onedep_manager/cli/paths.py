@@ -151,7 +151,7 @@ def generate_funcs():
         with open(output_file, 'w') as f:
             f.write('\n'.join(lines))
         os.chmod(output_file, 0o755)
-        printer.success(f"Successfully created {output_file}")
+        printer.info(f"Successfully created {output_file}")
         printer.info("To use these functions, add this to your .bashrc or .bash_profile:")
         printer.info(f"  source {output_file}")
     except Exception as e:
