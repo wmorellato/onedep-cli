@@ -171,7 +171,6 @@ def generate_funcs():
         "    cd \"$path\" || return 1",
         "}",
         "",
-    ], [
         "function lswfi() {",
         "    if [ -z \"$1\" ] || [ -z \"$2\" ]; then",
         "        echo \"Error: both dep_id and wfinst_id required\"",
