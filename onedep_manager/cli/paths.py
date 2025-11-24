@@ -75,7 +75,8 @@ def generate_funcs():
     pi = PathInfo()
 
     # Define path mappings: (type, variable_suffix, function_suffix, base_path_getter)
-    path_mappings = [
+    # Regular paths that get cd/ls functions
+    regular_path_mappings = [
         ('tempdep', 'TEMPDEP', 't', lambda: pi.getTempDepPath(dataSetId=mock_dep_id).rsplit('/', 1)[0]),
         ('deposit', 'DEPOSIT', 'd', lambda: pi.getDepositPath(dataSetId=mock_dep_id).rsplit('/', 1)[0]),
         ('deposit', 'DEPOSIT_UI', 'ui', lambda: pi.getDepositUIPath(dataSetId=mock_dep_id).rsplit('/', 1)[0]),
@@ -83,10 +84,16 @@ def generate_funcs():
         ('session', 'SESSION', 's', lambda: config.from_site("SITE_WEB_APPS_SESSIONS_PATH")),
         ('upload', 'UPLOAD', 'up', lambda: pi.getDirPath(dataSetId=mock_dep_id, fileSource='uploads').rsplit('/', 1)[0]),
         ('pickles', 'PICKLES', 'pkl', lambda: pi.getDirPath(dataSetId=mock_dep_id, fileSource='pickles').rsplit('/', 1)[0]),
+    ]
+
+    # Special paths that get vi functions or custom handling
+    special_path_mappings = [
         ('wfinst', 'WFINST', 'wfi', lambda: pi.getInstancePath(dataSetId=mock_dep_id, wfInstanceId='W_001').rsplit('/', 2)[0]),
         ('ccid', 'CCID', 'ccid', lambda: ChemRefPathInfo().getFilePath(idCode='ABC').rsplit('/', 2)[0]),
         ('wfxml', 'WFXML', 'wfx', lambda: config.from_site("SITE_WF_XML_PATH")),
     ]
+
+    all_path_mappings = regular_path_mappings + special_path_mappings
 
     # Generate the bash file content
     lines = [
@@ -99,7 +106,7 @@ def generate_funcs():
     ]
 
     # Add export statements
-    for type_name, var_suffix, func_suffix, path_getter in path_mappings:
+    for type_name, var_suffix, func_suffix, path_getter in all_path_mappings:
         try:
             base_path = path_getter()
             lines.append(f"export ODM_{var_suffix}=\"{base_path}\"")
@@ -109,8 +116,8 @@ def generate_funcs():
 
     lines.append("")
 
-    # Add cd functions
-    for type_name, var_suffix, func_suffix, _ in path_mappings:
+    # Add cd functions for regular paths
+    for type_name, var_suffix, func_suffix, _ in regular_path_mappings:
         lines.extend([
             f"function cd{func_suffix}() {{",
             f"    if [ -z \"$1\" ]; then",
@@ -127,8 +134,8 @@ def generate_funcs():
             "",
         ])
 
-    # Add ls functions
-    for type_name, var_suffix, func_suffix, _ in path_mappings:
+    # Add ls functions for regular paths
+    for type_name, var_suffix, func_suffix, _ in regular_path_mappings:
         lines.extend([
             f"function ls{func_suffix}() {{",
             f"    if [ -z \"$1\" ]; then",
@@ -144,6 +151,64 @@ def generate_funcs():
             f"}}",
             "",
         ])
+
+    # Add special vi functions
+    # viccid: path structure is <base>/<id_initial>/<full_id>
+    lines.extend([
+        "function viccid() {",
+        "    if [ -z \"$1\" ]; then",
+        "        echo \"Error: ccid identifier required\"",
+        "        return 1",
+        "    fi",
+        "    local id=\"$1\"",
+        "    local id_initial=\"${id:0:1}\"",
+        "    local path=\"$ODM_CCID/$id_initial/$id\"",
+        "    if [ ! -f \"$path\" ]; then",
+        "        echo \"Error: file not found: $path\"",
+        "        return 1",
+        "    fi",
+        "    vi \"$path\"",
+        "}",
+        "",
+    ])
+
+    # viwfx: opens wfxml file
+    lines.extend([
+        "function viwfx() {",
+        "    if [ -z \"$1\" ]; then",
+        "        echo \"Error: workflow identifier required\"",
+        "        return 1",
+        "    fi",
+        "    local path=\"$ODM_WFXML/$1.xml\"",
+        "    if [ ! -f \"$path\" ]; then",
+        "        echo \"Error: file not found: $path\"",
+        "        return 1",
+        "    fi",
+        "    vi \"$path\"",
+        "}",
+        "",
+    ])
+
+    # viwfi: takes two parameters (dep_id and wfinst_id)
+    lines.extend([
+        "function viwfi() {",
+        "    if [ -z \"$1\" ] || [ -z \"$2\" ]; then",
+        "        echo \"Error: both dep_id and wfinst_id required\"",
+        "        echo \"Usage: viwfi <dep_id> <wfinst_id>\"",
+        "        return 1",
+        "    fi",
+        "    local dep_id=\"$1\"",
+        "    local wfinst_id=\"$2\"",
+        "    local path=\"$ODM_WFINST/$dep_id/$wfinst_id\"",
+        "    if [ ! -d \"$path\" ]; then",
+        "        echo \"Error: directory not found: $path\"",
+        "        return 1",
+        "    fi",
+        "    # Open the directory in vi (will show file browser or fail gracefully)",
+        "    cd \"$path\" && vi .",
+        "}",
+        "",
+    ])
 
     # Write to file
     output_file = Path.home() / ".onedep_funcs"
