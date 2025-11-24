@@ -28,80 +28,89 @@ Add to your `.bashrc` or `.bash_profile` for automatic loading.
 
 ## Navigation Functions (cd)
 
-### `cdt [identifier]`
-**Arguments:** `identifier` (optional) - Deposition ID
+### `cdt [dep_id]`
+**Arguments:** `dep_id` (optional) - Deposition ID
 **Purpose:** Change directory to temporary deposit location. If no identifier provided, goes to root.
 
-### `cdd [identifier]`
-**Arguments:** `identifier` (optional) - Deposition ID
+### `cdd [dep_id]`
+**Arguments:** `dep_id` (optional) - Deposition ID
 **Purpose:** Change directory to deposit location. If no identifier provided, goes to root.
 
-### `cdui [identifier]`
-**Arguments:** `identifier` (optional) - Deposition ID
+### `cdui [dep_id]`
+**Arguments:** `dep_id` (optional) - Deposition ID
 **Purpose:** Change directory to deposit UI location. If no identifier provided, goes to root.
 
-### `cda [identifier]`
-**Arguments:** `identifier` (optional) - Deposition ID
+### `cda [dep_id]`
+**Arguments:** `dep_id` (optional) - Deposition ID
 **Purpose:** Change directory to archive location. If no identifier provided, goes to root.
 
-### `cds [identifier]`
-**Arguments:** `identifier` (optional) - Session ID
+### `cds [session_id]`
+**Arguments:** `session_id` (optional) - Session ID
 **Purpose:** Change directory to session location. If no identifier provided, goes to root.
 
-### `cdup [identifier]`
-**Arguments:** `identifier` (optional) - Deposition ID
+### `cdup [dep_id]`
+**Arguments:** `dep_id` (optional) - Deposition ID
 **Purpose:** Change directory to upload location. If no identifier provided, goes to root.
 
-### `cdpkl [identifier]`
-**Arguments:** `identifier` (optional) - Deposition ID
+### `cdpkl [dep_id]`
+**Arguments:** `dep_id` (optional) - Deposition ID
 **Purpose:** Change directory to pickles location. If no identifier provided, goes to root.
 
-## Listing Functions (ls)
-
-### `lst [identifier]`
-**Arguments:** `identifier` (optional) - Deposition ID
-**Purpose:** List contents of temporary deposit location. If no identifier provided, lists root.
-
-### `lsd [identifier]`
-**Arguments:** `identifier` (optional) - Deposition ID
-**Purpose:** List contents of deposit location. If no identifier provided, lists root.
-
-### `lsui [identifier]`
-**Arguments:** `identifier` (optional) - Deposition ID
-**Purpose:** List contents of deposit UI location. If no identifier provided, lists root.
-
-### `lsa [identifier]`
-**Arguments:** `identifier` (optional) - Deposition ID
-**Purpose:** List contents of archive location. If no identifier provided, lists root.
-
-### `lss [identifier]`
-**Arguments:** `identifier` (optional) - Session ID
-**Purpose:** List contents of session location. If no identifier provided, lists root.
-
-### `lsup [identifier]`
-**Arguments:** `identifier` (optional) - Deposition ID
-**Purpose:** List contents of upload location. If no identifier provided, lists root.
-
-### `lspkl [identifier]`
-**Arguments:** `identifier` (optional) - Deposition ID
-**Purpose:** List contents of pickles location. If no identifier provided, lists root.
-
-## Editor Functions (vi)
-
-### `viccid <identifier>`
-**Arguments:** `identifier` (required) - Chemical component ID (e.g., "ABC")
-**Purpose:** Open chemical component dictionary file in vi. Path structure: `$ODM_CCID/<first_letter>/<identifier>`
-
-### `viwfx <identifier>`
-**Arguments:** `identifier` (required) - Workflow identifier
-**Purpose:** Open workflow XML file in vi. Opens `$ODM_WFXML/<identifier>.xml`
-
-### `viwfi <dep_id> <wfinst_id>`
+### `cdwfi <dep_id> <wfinst_id>`
 **Arguments:**
 - `dep_id` (required) - Deposition ID
 - `wfinst_id` (required) - Workflow instance ID
 
-**Purpose:** Navigate to workflow instance directory and open in vi. Path: `$ODM_WFINST/<dep_id>/<wfinst_id>`
+**Purpose:** Navigate to workflow instance directory. Path: `$ODM_WFINST/<dep_id>/<wfinst_id>`
+
+## Listing Functions (ls)
+
+### `lst [dep_id]`
+**Arguments:** `dep_id` (optional) - Deposition ID
+**Purpose:** List contents of temporary deposit location. If no identifier provided, lists root.
+
+### `lsd [dep_id]`
+**Arguments:** `dep_id` (optional) - Deposition ID
+**Purpose:** List contents of deposit location. If no identifier provided, lists root.
+
+### `lsui [dep_id]`
+**Arguments:** `dep_id` (optional) - Deposition ID
+**Purpose:** List contents of deposit UI location. If no identifier provided, lists root.
+
+### `lsa [dep_id]`
+**Arguments:** `dep_id` (optional) - Deposition ID
+**Purpose:** List contents of archive location. If no identifier provided, lists root.
+
+### `lss [session_id]`
+**Arguments:** `session_id` (optional) - Session ID
+**Purpose:** List contents of session location. If no identifier provided, lists root.
+
+### `lsup [dep_id]`
+**Arguments:** `dep_id` (optional) - Deposition ID
+**Purpose:** List contents of upload location. If no identifier provided, lists root.
+
+### `lspkl [dep_id]`
+**Arguments:** `dep_id` (optional) - Deposition ID
+**Purpose:** List contents of pickles location. If no identifier provided, lists root.
+
+### `lswfi <dep_id> <wfinst_id>`
+**Arguments:**
+- `dep_id` (required) - Deposition ID
+- `wfinst_id` (required) - Workflow instance ID
+
+**Purpose:** List workflow instance directory. Path: `$ODM_WFINST/<dep_id>/<wfinst_id>`
+
+## Editor Functions (vi)
+
+### `viccid <ccid>`
+**Arguments:** `ccid` (required) - Chemical component ID (e.g., "ABC")
+**Purpose:** Open chemical component dictionary file in vi. Path structure: `$ODM_CCID/<first_letter>/<identifier>`
+
+### `viwfx <wf_xml_name>`
+**Arguments:** `wf_xml_name` (required) - Workflow identifier
+**Purpose:** Open workflow XML file in vi. Opens `$ODM_WFXML/<identifier>.xml`
+
+
 
 ## Examples
 
