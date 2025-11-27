@@ -1,6 +1,7 @@
 import os
 from typing import Optional, List, Tuple
-from rich.console import Console
+from rich.console import Console, Group
+from rich.panel import Panel
 
 from onedep_manager.config import Config
 
@@ -74,10 +75,11 @@ class InfoFormatter:
     def __init__(self, console: Console, key_width: int = 20):
         self._console = console
         self._key_width = key_width
+        self._lines = []
 
-    def print_row(self, key: str, value: Optional[str], color: str = "cyan"):
+    def add_row(self, key: str, value: Optional[str], color: str = "cyan"):
         """
-        Print a formatted row with key and colored value.
+        Add a formatted row with key and colored value.
 
         Args:
             key: The label/key to display
@@ -90,15 +92,32 @@ class InfoFormatter:
             value = f"[{color}]{value}[/{color}]"
 
         padded_key = key.ljust(self._key_width)
-        self._console.print(f"{padded_key} {value}")
+        self._lines.append(f"{padded_key} {value}")
 
-    def print_section_header(self, title: str):
-        """Print a section header."""
-        self._console.print(f"\n[bold]{title}[/bold]")
+    def add_section_header(self, title: str):
+        """Add a section header."""
+        self._lines.append(f"\n[bold]{title}[/bold]")
 
-    def print_empty_line(self):
-        """Print an empty line."""
-        self._console.print()
+    def add_empty_line(self):
+        """Add an empty line."""
+        self._lines.append("")
+
+    def render(self, title: str = "Instance Information"):
+        """
+        Render all collected lines in a panel with thin border.
+
+        Args:
+            title: Title for the panel
+        """
+        content = "\n".join(self._lines)
+        panel = Panel(
+            content,
+            title=f"[bold cyan]{title}[/bold cyan]",
+            border_style="cyan",
+            padding=(1, 2),
+            expand=False
+        )
+        self._console.print(panel)
 
 
 class InstanceInfoService:
@@ -115,14 +134,14 @@ class InstanceInfoService:
         tools_path = self._retriever.get_value("tools_path")
         slurm_queue = self._retriever.get_value("pdbe_cluster_queue")
 
-        self._formatter.print_row("Site ID:", site_id, "green")
-        self._formatter.print_row("Site location:", site_location, "yellow")
-        self._formatter.print_row("Tools:", tools_path, "cyan")
-        self._formatter.print_row("Slurm queue:", slurm_queue, "magenta")
+        self._formatter.add_row("Site ID:", site_id, "green")
+        self._formatter.add_row("Site location:", site_location, "yellow")
+        self._formatter.add_row("Tools:", tools_path, "cyan")
+        self._formatter.add_row("Slurm queue:", slurm_queue, "magenta")
 
     def display_databases(self):
         """Display database connection information."""
-        self._formatter.print_section_header("Databases:")
+        self._formatter.add_section_header("Databases:")
 
         db_configs = [
             ("site_da_internal_db_user_name", "site_da_internal_db_host_name",
@@ -142,21 +161,21 @@ class InstanceInfoService:
         for user_key, host_key, port_key, name_key in db_configs:
             db_url = self._retriever.build_database_url(user_key, host_key, port_key, name_key)
             if db_url:
-                self._formatter.print_row("  ", db_url, "blue")
+                self._formatter.add_row("  ", db_url, "blue")
 
     def display_paths(self):
         """Display OneDep paths."""
-        self._formatter.print_section_header("Paths:")
+        self._formatter.add_section_header("Paths:")
 
         onedep_root = self._retriever.get_first_available(["deploy_path", "top_software_path"])
         data_path = self._retriever.get_first_available(["top_data_dir", "data_path"])
 
-        self._formatter.print_row("OneDep root:", onedep_root, "green")
-        self._formatter.print_row("Data path:", data_path, "green")
+        self._formatter.add_row("OneDep root:", onedep_root, "green")
+        self._formatter.add_row("Data path:", data_path, "green")
 
     def display_all(self):
         """Display all instance information."""
         self.display_basic_info()
         self.display_databases()
         self.display_paths()
-        self._formatter.print_empty_line()
+        self._formatter.render()
