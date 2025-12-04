@@ -57,10 +57,10 @@ class InfoDataRetriever:
         Returns:
             A formatted database URL or None if any key is missing
         """
-        user = self._config.from_site(user_key)
-        host = self._config.from_site(host_key)
-        port = self._config.from_site(port_key)
-        name = self._config.from_site(name_key)
+        user = self.get_value(user_key)
+        host = self.get_value(host_key)
+        port = self.get_value(port_key)
+        name = self.get_value(name_key)
 
         # If any value is None or empty, return None
         if not all([user, host, port, name]):
