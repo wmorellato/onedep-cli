@@ -2,7 +2,7 @@ import click
 from rich.console import Console
 
 from onedep_manager.config import Config
-from onedep_manager.cli.instance_info import (
+from onedep_manager.instance.info import (
     InfoDataRetriever,
     InfoFormatter,
     InstanceInfoService,
