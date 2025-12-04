@@ -168,6 +168,9 @@ class InstanceInfoService:
         self._formatter.add_section_header("Paths:")
 
         onedep_root = self._retriever.get_first_available(["deploy_path", "top_software_path"])
+        if onedep_root is None:
+            onedep_root = self._retriever.get_value("onedep_path", from_env=True, env_var="ONEDEP_PATH")
+
         data_path = self._retriever.get_first_available(["top_data_dir", "data_path"])
 
         self._formatter.add_row("OneDep root:", onedep_root, "green")
