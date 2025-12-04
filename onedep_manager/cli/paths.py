@@ -213,10 +213,6 @@ def generate_funcs():
     # cdpkg: cd into a package repository
     lines.extend([
         "function cdpkg() {",
-        "    if [ -z \"$1\" ]; then",
-        "        echo \"Error: package name required (e.g., wwpdb.apps.deposit)\"",
-        "        return 1",
-        "    fi",
         "    local pkg_name=\"$1\"",
         "    local repo_name=\"py-${pkg_name//./_}\"",
         "    local path=\"$ODM_PACKAGE/$repo_name\"",
