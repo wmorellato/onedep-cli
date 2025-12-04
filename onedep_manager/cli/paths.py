@@ -89,6 +89,7 @@ def generate_funcs():
 
     # Special paths that get vi functions or custom handling
     special_path_mappings = [
+        ('package', 'PACKAGE', 'pkg', lambda: config.get("TOP_WWPDB_WEBAPPS_DIR").rsplit('/', 2)[0]),
         ('ccid', 'CCID', 'ccid', lambda: ChemRefPathInfo().getFilePath(idCode='ABC').rsplit('/', 3)[0]),
         ('wfxml', 'WFXML', 'wfx', lambda: config.from_site("SITE_WF_XML_PATH")),
     ]
@@ -205,6 +206,25 @@ def generate_funcs():
         "        return 1",
         "    fi",
         "    vi \"$path\"",
+        "}",
+        "",
+    ])
+
+    # cdpkg: cd into a package repository
+    lines.extend([
+        "function cdpkg() {",
+        "    if [ -z \"$1\" ]; then",
+        "        echo \"Error: package name required (e.g., wwpdb.apps.deposit)\"",
+        "        return 1",
+        "    fi",
+        "    local pkg_name=\"$1\"",
+        "    local repo_name=\"py-${pkg_name//./_}\"",
+        "    local path=\"$ODM_PACKAGE/$repo_name\"",
+        "    if [ ! -d \"$path\" ]; then",
+        "        echo \"Error: directory not found: $path\"",
+        "        return 1",
+        "    fi",
+        "    cd \"$path\" || return 1",
         "}",
         "",
     ])
