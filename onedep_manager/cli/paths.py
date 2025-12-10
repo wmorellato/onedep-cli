@@ -89,7 +89,7 @@ def generate_funcs():
 
     # Special paths that get vi functions or custom handling
     special_path_mappings = [
-        ('package', 'PACKAGE', 'pkg', lambda: config.get("TOP_WWPDB_WEBAPPS_DIR").rsplit('/', 2)[0]),
+        ('package', 'PACKAGE', 'pkg', lambda: config.from_site("TOP_WWPDB_WEBAPPS_DIR").rsplit('/', 2)[0]),
         ('ccid', 'CCID', 'ccid', lambda: ChemRefPathInfo().getFilePath(idCode='ABC').rsplit('/', 3)[0]),
         ('wfxml', 'WFXML', 'wfx', lambda: config.from_site("SITE_WF_XML_PATH")),
     ]
