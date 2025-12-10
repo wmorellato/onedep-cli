@@ -214,7 +214,11 @@ def generate_funcs():
     lines.extend([
         "function cdpkg() {",
         "    local pkg_name=\"$1\"",
-        "    local repo_name=\"py-${pkg_name//./_}\"",
+        "    if [ -z \"$pkg_name\" ]; then",
+        "        local repo_name=\"\""
+        "    else",
+        "        local repo_name=\"py-${pkg_name//./_}\"",
+        "    fi",
         "    local path=\"$ODM_PACKAGE/$repo_name\"",
         "    if [ ! -d \"$path\" ]; then",
         "        echo \"Error: directory not found: $path\"",
