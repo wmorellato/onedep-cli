@@ -215,7 +215,7 @@ def generate_funcs():
         "function cdpkg() {",
         "    local pkg_name=\"$1\"",
         "    if [ -z \"$pkg_name\" ]; then",
-        "        local repo_name=\"\""
+        "        local repo_name=\"\"",
         "    else",
         "        local repo_name=\"py-${pkg_name//./_}\"",
         "    fi",
