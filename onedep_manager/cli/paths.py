@@ -9,6 +9,7 @@ from onedep_manager.packages import get_package
 
 from wwpdb.io.locator.PathInfo import PathInfo
 from wwpdb.io.locator.ChemRefPathInfo import ChemRefPathInfo
+from wwpdb.utils.config.ConfigInfo import getSiteId
 
 
 @click.group(name="paths", help="Get common OneDep paths")
@@ -63,16 +64,20 @@ def get(type_, identifier, site):
 
 
 @paths_group.command(name="generate-funcs", help="Generate .onedep_funcs bash file with environment variables and helper functions")
-def generate_funcs():
+@click.option("-i", "--site", "site", help="wwPDB site ID (e.g. WWPDB_DEPLOY_TEST_RU). Defaults to the current site.")
+def generate_funcs(site):
     """`generate-funcs` command handler
     Creates a .onedep_funcs file in the home directory with export statements
     and helper functions for cd and ls operations.
     """
+    if not site:
+        site = getSiteId()
+
     c = Console()
     printer = ConsolePrinter(console=c)
     config = Config()
     mock_dep_id = "D_000000"
-    pi = PathInfo()
+    pi = PathInfo(siteId=site)
 
     # Define path mappings: (type, variable_suffix, function_suffix, base_path_getter)
     # Regular paths that get cd/ls functions
@@ -230,7 +235,7 @@ def generate_funcs():
     ])
 
     # Write to file
-    output_file = Path.home() / ".onedep_funcs"
+    output_file = Path.home() / f".onedep_funcs_{site.lower()}"
     try:
         with open(output_file, 'w') as f:
             f.write('\n'.join(lines))
