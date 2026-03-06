@@ -174,13 +174,11 @@ def get_package(name, branch=True):
 
 
 def get_wwpdb_packages(name="wwpdb", branch=True):
+    # need a separate function for resources_rx and web apps
     distributions = metadata.distributions()
 
     for distribution in distributions:
         package_name = distribution.metadata["Name"] # had some issues accessing distribution.name directly
-
-        if package_name not in ONEDEP_PACKAGES:
-            continue
 
         if name not in package_name:
             continue
