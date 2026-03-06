@@ -10,10 +10,15 @@ class Config:
 
     def __init__(self, config_file: str = None):
         self._odconfig = ConfigInfo()
-        self.ODM_CONFIG_DIR = os.path.join(self._odconfig.get("TOP_SOFTWARE_DIR"), "odm")
+        self.ODM_CONFIG_DIR = os.path.join(self._odconfig.get("TOP_WWPDB_SITE_CONFIG_DIR"), "odm")
 
         if not config_file:
             config_file = os.path.join(self.ODM_CONFIG_DIR, "config.yaml")
+
+        if not os.path.exists(config_file):
+            os.makedirs(self.ODM_CONFIG_DIR, exist_ok=True)
+            with open(config_file, "w") as f:
+                yaml.dump({"services": []}, f)
 
         self._config_file = config_file
         self._config = self._load_config()
