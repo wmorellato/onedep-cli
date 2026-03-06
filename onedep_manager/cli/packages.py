@@ -1,4 +1,4 @@
-import env
+import os
 import click
 from rich import console
 from rich.theme import Theme
@@ -35,7 +35,7 @@ def _format_path(path):
     if path is None:
         return ""
 
-    onedep_root = env.get("ONEDEP_PATH")
+    onedep_root = os.environ.get("ONEDEP_PATH")
 
     if onedep_root and path.startswith(onedep_root):
         return path.replace(onedep_root, "[variable]$ONEDEP_PATH[/variable]")
