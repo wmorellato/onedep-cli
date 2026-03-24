@@ -93,8 +93,10 @@ def generate_funcs(site):
     ]
 
     # Special paths that get vi functions or custom handling
+    sources_dir = _find_source_dir(config.from_site("SITE_DEPLOY_PATH"))
+
     special_path_mappings = [
-        ('package', 'PACKAGE', 'pkg', lambda: config.from_site("TOP_WWPDB_WEBAPPS_DIR").rsplit('/', 2)[0]),
+        ('package', 'PACKAGE', 'pkg', lambda: sources_dir),
         ('ccid', 'CCID', 'ccid', lambda: ChemRefPathInfo().getFilePath(idCode='ABC').rsplit('/', 3)[0]),
         ('wfxml', 'WFXML', 'wfx', lambda: config.from_site("SITE_WF_XML_PATH")),
     ]
@@ -245,3 +247,13 @@ def generate_funcs(site):
         printer.info(f"  source {output_file}")
     except Exception as e:
         printer.error(f"Failed to write {output_file}: {e}")
+
+
+def _find_source_dir(base_path):
+    """Helper function to find a directory with a specific name in the path hierarchy"""
+    current_path = Path(base_path)
+    dir_names = ["source", "sources", "src"]
+    for d in dir_names:
+        if (current_path / d).is_dir():
+            return current_path / d
+    return current_path
