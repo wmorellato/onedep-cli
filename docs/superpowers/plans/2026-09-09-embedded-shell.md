@@ -1500,6 +1500,8 @@ git commit -m "Add files find/list/hash/info commands with plugin dispatch"
 
 ```python
 # tests/shell/test_app.py
+import sys
+import types
 from pathlib import Path
 from unittest import mock
 
@@ -1557,10 +1559,19 @@ def test_entry_command_with_no_args_shows_current_entry(tmp_path, capsys):
     assert "D_1000001" in capsys.readouterr().out
 
 
-def test_bridges_successfully_importable_group(tmp_path, capsys):
+def test_bridges_successfully_importable_group(tmp_path, monkeypatch, capsys):
+    # Register a fake module directly in sys.modules rather than relying on
+    # a real file's dotted import path -- that path's resolution depends on
+    # how the test process itself was launched (python -m pytest vs. a bare
+    # pytest/poetry entry point insert cwd onto sys.path differently), which
+    # this test must not depend on.
+    fake_module = types.ModuleType("onedep_manager_test_fake_ok_group")
+    fake_module.fakegroup = fakegroup
+    monkeypatch.setitem(sys.modules, "onedep_manager_test_fake_ok_group", fake_module)
+
     shell = _shell(
         tmp_path,
-        cli_group_imports=[("fakegroup", "tests.shell.fixtures.fake_group_module", "fakegroup")],
+        cli_group_imports=[("fakegroup", "onedep_manager_test_fake_ok_group", "fakegroup")],
     )
 
     shell.onecmd_plus_hooks("fakegroup ping")
@@ -1610,27 +1621,6 @@ def test_scripts_run_unregistered_reports_error(tmp_path, capsys):
     shell.do_scripts("run does-not-exist")
 
     assert "not registered" in capsys.readouterr().out or "not registered" in capsys.readouterr().err
-```
-
-Add the fixture module used by `test_bridges_successfully_importable_group`:
-
-```python
-# tests/shell/fixtures/__init__.py
-```
-
-```python
-# tests/shell/fixtures/fake_group_module.py
-import click
-
-
-@click.group(name="fakegroup")
-def fakegroup():
-    pass
-
-
-@fakegroup.command(name="ping")
-def ping():
-    click.echo("pong")
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -1779,7 +1769,7 @@ Expected: 8 passed.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add onedep_manager/shell/app.py tests/shell/test_app.py tests/shell/fixtures/__init__.py tests/shell/fixtures/fake_group_module.py
+git add onedep_manager/shell/app.py tests/shell/test_app.py
 git commit -m "Add OneDepShell cmd2 app wiring context, bridging, files, and scripts"
 ```
 
