@@ -58,8 +58,8 @@ class ScriptRegistry:
     def run(self, name: str, args: Optional[List[str]] = None) -> int:
         try:
             meta = self._scripts[name]
-        except KeyError:
-            raise ScriptNotFoundError(f"Script '{name}' is not registered")
+        except KeyError as exc:
+            raise ScriptNotFoundError(f"Script '{name}' is not registered") from exc
 
         command = [str(meta.path)] + list(args or [])
         result = subprocess.run(command)

@@ -36,8 +36,8 @@ class EntryPathResolver:
     def resolve(self, entry_id: str, repo: str) -> Path:
         try:
             getter = _REPO_GETTERS[repo]
-        except KeyError:
-            raise UnknownRepositoryError(f"Unknown repository '{repo}'. Valid repositories: {', '.join(sorted(_REPO_GETTERS))}")
+        except KeyError as exc:
+            raise UnknownRepositoryError(f"Unknown repository '{repo}'. Valid repositories: {', '.join(sorted(_REPO_GETTERS))}") from exc
         return Path(getter(self._path_info, entry_id))
 
     @property
