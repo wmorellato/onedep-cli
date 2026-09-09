@@ -24,6 +24,16 @@ poetry run onedep-manager --help
 Command groups: `packages`, `services`, `instance`, `config`, `paths`, `tools`. Run `onedep-manager <group> --help`
 for the commands in each group.
 
+### Interactive shell
+
+```bash
+poetry run onedep-manager shell
+```
+
+An interactive `cmd2`-based shell wrapping all of the above, plus entry
+navigation, wwPDB-aware file queries, drop-in file-action plugins, and a
+whitelisted script registry. See [`docs/shell.md`](docs/shell.md).
+
 ## Tests
 
 ```bash
