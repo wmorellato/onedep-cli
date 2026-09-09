@@ -14,9 +14,10 @@
 
 - Bump `pyproject.toml`'s `python` floor from `^3.8` to `^3.9` and add `cmd2 = "^2.7"` — verified: cmd2 2.7.0 needs Python >=3.9 and only `rich-argparse>=1.7.1` (which needs `rich>=11.0.0`), so the existing `rich = "^13.0"` pin does **not** need to change.
 - New shell logic lives under `onedep_manager/shell/`; the Click entry point is a thin wrapper in `onedep_manager/cli/shell.py`, matching this repo's existing split between `cli/*.py` (thin Click wrappers, see `onedep_manager/cli/paths.py`) and top-level implementation packages (see `onedep_manager/instance/`).
-- Every new module must be importable, and every new unit test must be runnable, **without** `wwpdb.io`, `paramiko`, or `gitpython` installed. This dev sandbox only has `click`, `rich`, `pyyaml`, `pytest`, and `wwpdb.utils.config` available — `wwpdb.io`/`paramiko`/`gitpython` are missing, which already breaks collection of `tests/test_packages.py`, `tests/cli/test_packages.py`, `tests/cli/test_services.py`, and `tests/services/test_dispatcher.py` today (pre-existing, unrelated to this feature — do not try to fix it). Any real wwPDB/network/subprocess dependency (`PathInfo`, the real `services`/`packages`/`paths` Click groups) must be constructor-injectable so tests can substitute a fake.
+- Corrected during planning (the pyproject.toml comment claiming `wwpdb.utils.config`/`wwpdb.io` aren't on public PyPI is stale): in a clean venv, `pip install -e .` pulls in `click`/`rich`/`pyyaml`/`gitpython`/`paramiko`/`psutil` normally, and `pip install wwpdb.utils.config wwpdb.io` both succeed and the exact classes this codebase uses (`ConfigInfo`, `PathInfo`) import correctly. So the whole dependency set **is** installable here — see Task 1 Step 2.
+- The real, still-present gap: `Config()` (`onedep_manager/config.py`) calls `ConfigInfo()`, which needs a real wwPDB site configured (`TOP_WWPDB_SITE_CONFIG_DIR` pointing at valid site config data) — not present in this environment. This causes 7 pre-existing, unrelated test failures today (not collection errors — real assertion/`TypeError` failures): `tests/cli/test_packages.py::test_get`, `tests/services/test_dispatcher.py::test_local_dispatcher`, `::test_local_dispatcher_logs_and_reports_failed_on_handler_error`, `::test_remote_dispatcher`, `tests/test_config.py::test_get_services`, `::test_single_service`, `tests/test_packages.py::test_clone_clones_into_a_package_specific_directory`. Do not try to fix these — they're not this feature's concern. New shell code must not add to this list: never call the real `Config()`/`EntryPathResolver()`/`PathInfo()` (or import the real `services`/`packages`/`paths` Click groups eagerly) from a test — always inject a fake/mock, exactly as each task's tests already do.
 - Reuse `onedep_manager/cli/common.py`'s `Printer`/`ConsolePrinter`/`RawPrinter` for all shell output — do not add a second output abstraction.
-- Run only the test file(s) each task adds/touches (e.g. `pytest tests/shell/test_context.py -v`), not the whole suite — the whole suite has the pre-existing collection errors described above.
+- Run only the test file(s) each task adds/touches (e.g. `pytest tests/shell/test_context.py -v`), not the whole suite — the whole suite has the pre-existing failures described above.
 - Every new/modified `.py` file must stay under `onedep_manager/ruff`'s existing line-length (200) and lint rules (`E`, `F`, `B`); run `ruff check` on changed files before each commit if `ruff` is available in the environment.
 
 ---
@@ -77,13 +78,23 @@ and add, alphabetically with the other dependencies:
 cmd2 = "^2.7"
 ```
 
+Also update the `[tool.ruff]` section's `target-version` to match the new floor:
+```toml
+[tool.ruff]
+line-length = 200
+target-version = "py39"
+```
+(This repo's CI (`.github/workflows/ci.yml`) already runs Python 3.10, so bumping the floor from 3.8 to 3.9 is within what CI already exercises.)
+
 - [ ] **Step 2: Create/refresh a local virtualenv and install**
 
 ```bash
 python3 -m venv .venv
 ./.venv/bin/pip install -e .
-./.venv/bin/pip install "cmd2==2.7.0" pytest
+./.venv/bin/pip install "cmd2==2.7.0" pytest wwpdb.utils.config wwpdb.io
 ```
+
+(`wwpdb.utils.config` and `wwpdb.io` are not in `pyproject.toml` per the comment there, but both install cleanly from public PyPI and are needed for the full existing suite to even collect — install them into this venv directly, same as this step does for `pytest`.)
 
 - [ ] **Step 3: Verify no dependency conflicts and that cmd2 imports**
 
@@ -331,8 +342,8 @@ class EntryPathResolver:
     def resolve(self, entry_id: str, repo: str) -> Path:
         try:
             getter = _REPO_GETTERS[repo]
-        except KeyError:
-            raise UnknownRepositoryError(f"Unknown repository '{repo}'. Valid repositories: {', '.join(sorted(_REPO_GETTERS))}")
+        except KeyError as exc:
+            raise UnknownRepositoryError(f"Unknown repository '{repo}'. Valid repositories: {', '.join(sorted(_REPO_GETTERS))}") from exc
         return Path(getter(self._path_info, entry_id))
 
     @property
@@ -969,8 +980,8 @@ class ScriptRegistry:
     def run(self, name: str, args: Optional[List[str]] = None) -> int:
         try:
             meta = self._scripts[name]
-        except KeyError:
-            raise ScriptNotFoundError(f"Script '{name}' is not registered")
+        except KeyError as exc:
+            raise ScriptNotFoundError(f"Script '{name}' is not registered") from exc
 
         command = [str(meta.path)] + list(args or [])
         result = subprocess.run(command)
@@ -1147,7 +1158,6 @@ git commit -m "Add helper to bridge existing Click command groups into the shell
 ```python
 # tests/shell/test_files.py
 import hashlib
-import os
 from io import StringIO
 from pathlib import Path
 
@@ -1464,7 +1474,7 @@ class FilesCommands:
 ```bash
 ./.venv/bin/python -m pytest tests/shell/test_files.py -v
 ```
-Expected: 12 passed.
+Expected: 11 passed.
 
 - [ ] **Step 5: Commit**
 
@@ -1489,7 +1499,8 @@ git commit -m "Add files find/list/hash/info commands with plugin dispatch"
 
 ```python
 # tests/shell/test_app.py
-from pathlib import Path
+import sys
+import types
 from unittest import mock
 
 import click
@@ -1546,10 +1557,19 @@ def test_entry_command_with_no_args_shows_current_entry(tmp_path, capsys):
     assert "D_1000001" in capsys.readouterr().out
 
 
-def test_bridges_successfully_importable_group(tmp_path, capsys):
+def test_bridges_successfully_importable_group(tmp_path, monkeypatch, capsys):
+    # Register a fake module directly in sys.modules rather than relying on
+    # a real file's dotted import path -- that path's resolution depends on
+    # how the test process itself was launched (python -m pytest vs. a bare
+    # pytest/poetry entry point insert cwd onto sys.path differently), which
+    # this test must not depend on.
+    fake_module = types.ModuleType("onedep_manager_test_fake_ok_group")
+    fake_module.fakegroup = fakegroup
+    monkeypatch.setitem(sys.modules, "onedep_manager_test_fake_ok_group", fake_module)
+
     shell = _shell(
         tmp_path,
-        cli_group_imports=[("fakegroup", "tests.shell.fixtures.fake_group_module", "fakegroup")],
+        cli_group_imports=[("fakegroup", "onedep_manager_test_fake_ok_group", "fakegroup")],
     )
 
     shell.onecmd_plus_hooks("fakegroup ping")
@@ -1576,7 +1596,13 @@ def test_files_command_dispatches_through_files_commands_mixin(tmp_path, monkeyp
     assert "D_800000_model_P1.cif.V1" in capsys.readouterr().out
 
 
-def test_scripts_list_and_run(tmp_path, capsys):
+def test_scripts_list_and_run(tmp_path, capfd):
+    # capfd, not capsys: `run hello.sh` shells out via subprocess.run(),
+    # which writes to the inherited OS file descriptor directly -- capsys
+    # only intercepts the sys.stdout Python object and would see nothing
+    # for that half. Task 6's own test_scripts.py uses capfd for the same
+    # reason; capfd also sees plain Python stdout writes (like `list`'s),
+    # so one fixture covers both assertions here.
     scripts_dir = tmp_path / "scripts"
     scripts_dir.mkdir()
     script = scripts_dir / "hello.sh"
@@ -1587,10 +1613,10 @@ def test_scripts_list_and_run(tmp_path, capsys):
     shell = _shell(tmp_path)
 
     shell.do_scripts("list --tag demo")
-    assert "hello.sh" in capsys.readouterr().out
+    assert "hello.sh" in capfd.readouterr().out
 
     shell.do_scripts("run hello.sh")
-    assert "hi" in capsys.readouterr().out
+    assert "hi" in capfd.readouterr().out
 
 
 def test_scripts_run_unregistered_reports_error(tmp_path, capsys):
@@ -1599,27 +1625,6 @@ def test_scripts_run_unregistered_reports_error(tmp_path, capsys):
     shell.do_scripts("run does-not-exist")
 
     assert "not registered" in capsys.readouterr().out or "not registered" in capsys.readouterr().err
-```
-
-Add the fixture module used by `test_bridges_successfully_importable_group`:
-
-```python
-# tests/shell/fixtures/__init__.py
-```
-
-```python
-# tests/shell/fixtures/fake_group_module.py
-import click
-
-
-@click.group(name="fakegroup")
-def fakegroup():
-    pass
-
-
-@fakegroup.command(name="ping")
-def ping():
-    click.echo("pong")
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -1665,6 +1670,22 @@ _SHELL_PACKAGE_DIR = Path(__file__).parent
 DEFAULT_PLUGIN_DIRS = [_SHELL_PACKAGE_DIR / "plugins", Path.home() / ".onedep" / "shell" / "plugins"]
 DEFAULT_SCRIPT_DIRS = [_SHELL_PACKAGE_DIR / "scripts", Path.home() / ".onedep" / "shell" / "scripts"]
 
+# Rich's Table (used by files find/list/hash/info) truncates cells -- e.g.
+# long archive paths, full md5 hashes -- to fit the console width, and
+# rich.Console() falls back to a fixed 80-column width whenever stdout
+# isn't a real terminal (piped/redirected output, or pytest's captured
+# output). That's too narrow for output where the exact path/hash matters,
+# so it's widened only in that non-interactive case; a real terminal keeps
+# its own auto-detected width untouched.
+_NON_TERMINAL_CONSOLE_WIDTH = 200
+
+
+def _build_console() -> Console:
+    console = Console()
+    if not console.is_terminal:
+        console.width = _NON_TERMINAL_CONSOLE_WIDTH
+    return console
+
 
 class OneDepShell(FilesCommands, cmd2.Cmd):
     """Interactive shell launched by `onedep-manager shell`."""
@@ -1683,7 +1704,7 @@ class OneDepShell(FilesCommands, cmd2.Cmd):
         self.config = config or Config()
         self.context = ShellContext()
         self.resolver = resolver or EntryPathResolver(site=site)
-        self.printer = ConsolePrinter(console=Console())
+        self.printer = ConsolePrinter(console=_build_console())
         self.plugins = load_plugins(plugin_dirs if plugin_dirs is not None else DEFAULT_PLUGIN_DIRS)
         self.scripts = ScriptRegistry(script_dirs if script_dirs is not None else DEFAULT_SCRIPT_DIRS)
 
@@ -1768,7 +1789,7 @@ Expected: 8 passed.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add onedep_manager/shell/app.py tests/shell/test_app.py tests/shell/fixtures/__init__.py tests/shell/fixtures/fake_group_module.py
+git add onedep_manager/shell/app.py tests/shell/test_app.py
 git commit -m "Add OneDepShell cmd2 app wiring context, bridging, files, and scripts"
 ```
 
@@ -1902,14 +1923,14 @@ git commit -m "Register onedep-manager shell command"
 ```bash
 ./.venv/bin/python -m pytest tests/shell/ tests/cli/test_shell.py -v
 ```
-Expected: all tests pass (58 tests across Tasks 2-10: 4+5+9+6+7+4+12+8 in `tests/shell/` plus 3 in `tests/cli/test_shell.py`).
+Expected: all tests pass (57 tests across Tasks 2-10: 4+5+9+6+7+4+11+8 in `tests/shell/` plus 3 in `tests/cli/test_shell.py`).
 
-- [ ] Confirm the pre-existing, unrelated collection errors are unchanged (still 4, still the same 4 files):
+- [ ] Confirm the full suite's pre-existing failures are unchanged (still exactly the same 7 tests, still failures not new errors):
 
 ```bash
-./.venv/bin/python -m pytest -q 2>&1 | tail -15
+./.venv/bin/python -m pytest -q --tb=no 2>&1 | tail -15
 ```
-Expected: the same `tests/test_packages.py`, `tests/cli/test_packages.py`, `tests/cli/test_services.py`, `tests/services/test_dispatcher.py` collection errors as before this plan (missing `git`/`paramiko` in this environment) — nothing new.
+Expected: `7 failed` (the exact same 7 tests listed in Global Constraints — `Config()` needs a real wwPDB site that isn't configured in this environment), plus all this plan's new tests passing, and 0 collection errors. If any new file fails to collect, or if the failure count/list differs from the 7 named in Global Constraints, something in this plan's code path is reaching a real `Config()`/`PathInfo()` construction it shouldn't.
 
 - [ ] Run `ruff check` on everything this plan touched, if `ruff` is available:
 
