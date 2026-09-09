@@ -1475,7 +1475,7 @@ class FilesCommands:
 ```bash
 ./.venv/bin/python -m pytest tests/shell/test_files.py -v
 ```
-Expected: 12 passed.
+Expected: 11 passed.
 
 - [ ] **Step 5: Commit**
 
@@ -1903,7 +1903,7 @@ git commit -m "Register onedep-manager shell command"
 ```bash
 ./.venv/bin/python -m pytest tests/shell/ tests/cli/test_shell.py -v
 ```
-Expected: all tests pass (58 tests across Tasks 2-10: 4+5+9+6+7+4+12+8 in `tests/shell/` plus 3 in `tests/cli/test_shell.py`).
+Expected: all tests pass (57 tests across Tasks 2-10: 4+5+9+6+7+4+11+8 in `tests/shell/` plus 3 in `tests/cli/test_shell.py`).
 
 - [ ] Confirm the full suite's pre-existing failures are unchanged (still exactly the same 7 tests, still failures not new errors):
 
