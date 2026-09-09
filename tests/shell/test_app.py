@@ -124,3 +124,41 @@ def test_scripts_run_unregistered_reports_error(tmp_path, capsys):
     shell.do_scripts("run does-not-exist")
 
     assert "not registered" in capsys.readouterr().out or "not registered" in capsys.readouterr().err
+
+
+def test_scripts_run_without_execute_permission_reports_clean_error(tmp_path, capsys):
+    scripts_dir = tmp_path / "scripts"
+    scripts_dir.mkdir()
+    script = scripts_dir / "noexec.sh"
+    script.write_text("#!/bin/sh\necho hi\n")
+    script.chmod(0o644)  # not executable
+    (scripts_dir / "noexec.sh.yaml").write_text("name: noexec.sh\ndescription: no exec bit\ntags: []\n")
+
+    shell = _shell(tmp_path)
+
+    shell.do_scripts("run noexec.sh")
+
+    output = capsys.readouterr()
+    combined = output.out + output.err
+    assert "noexec.sh" in combined
+
+
+def test_scripts_list_with_tag_and_no_value_reports_clean_error(tmp_path, capsys):
+    shell = _shell(tmp_path)
+
+    shell.do_scripts("list --tag")
+
+    output = capsys.readouterr()
+    combined = output.out + output.err
+    assert "--tag" in combined
+
+
+def test_entry_command_warns_when_resolved_path_does_not_exist(tmp_path, capsys):
+    shell = _shell(tmp_path)
+
+    shell.do_entry("D_9999999")
+
+    output = capsys.readouterr()
+    combined = output.out + output.err
+    assert "D_9999999" in combined
+    assert shell.context.current_entry == "D_9999999"

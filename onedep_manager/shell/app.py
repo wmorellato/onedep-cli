@@ -98,6 +98,14 @@ class OneDepShell(FilesCommands, cmd2.Cmd):
             return
 
         self.context.set_entry(entry_id)
+
+        try:
+            archive_path = self.resolver.resolve(entry_id, "archive")
+            if not archive_path.is_dir():
+                self.pwarning(f"Entry '{entry_id}' resolved to '{archive_path}', which does not exist")
+        except Exception as exc:
+            self.pwarning(f"Could not resolve archive path for entry '{entry_id}': {exc}")
+
         self._update_prompt()
 
     def do_files(self, arg) -> None:
@@ -118,7 +126,11 @@ class OneDepShell(FilesCommands, cmd2.Cmd):
         if action == "list":
             tag = None
             if "--tag" in rest:
-                tag = rest[rest.index("--tag") + 1]
+                tag_index = rest.index("--tag")
+                if tag_index + 1 >= len(rest):
+                    self.printer.error("Usage: scripts list --tag <tag>")
+                    return
+                tag = rest[tag_index + 1]
             for meta in self.scripts.list(tag=tag):
                 self.poutput(f"{meta.name}\t{', '.join(meta.tags)}\t{meta.description}")
             return
@@ -131,6 +143,9 @@ class OneDepShell(FilesCommands, cmd2.Cmd):
                 code = self.scripts.run(rest[0], rest[1:])
             except ScriptNotFoundError as exc:
                 self.printer.error(str(exc))
+                return
+            except (OSError, PermissionError) as exc:
+                self.printer.error(f"scripts run {rest[0]}: {exc}")
                 return
             if code != 0:
                 self.printer.error(f"Script exited with code {code}")

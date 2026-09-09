@@ -58,6 +58,32 @@ class _NonExitingArgumentParser(argparse.ArgumentParser):
         raise _ArgumentParserError(message)
 
 
+def _parse_plugin_kwargs(rest: List[str]) -> Dict[str, object]:
+    """Parse a plugin's trailing `--key value` / `--flag` tokens into a dict.
+
+    Walks `rest`; for each token starting with `--`, if the next token is
+    missing or also starts with `--`, it's treated as a boolean flag
+    (`True`); otherwise the next token is consumed as its string value.
+    The leading `--` is stripped and internal `-` becomes `_` for the key
+    (e.g. `--dest /tmp` -> {"dest": "/tmp"}, `--verbose` -> {"verbose": True}).
+    """
+    kwargs: Dict[str, object] = {}
+    i = 0
+    while i < len(rest):
+        token = rest[i]
+        if token.startswith("--"):
+            key = token[2:].replace("-", "_")
+            if i + 1 < len(rest) and not rest[i + 1].startswith("--"):
+                kwargs[key] = rest[i + 1]
+                i += 2
+            else:
+                kwargs[key] = True
+                i += 1
+        else:
+            i += 1
+    return kwargs
+
+
 def _shared_parser(allow_select: bool) -> argparse.ArgumentParser:
     parser = _NonExitingArgumentParser(add_help=False)
     parser.add_argument("--type", dest="type_", help="Comma-separated content types (e.g. model,model-upload)")
@@ -100,12 +126,24 @@ class FilesCommands:
         parser = _shared_parser(allow_select)
         parsed = parser.parse_args(args)
 
-        has_filters = any([parsed.type_, parsed.milestone, parsed.version, parsed.entry])
+        has_filters = any(
+            [
+                parsed.type_,
+                parsed.milestone,
+                parsed.version,
+                parsed.entry,
+                self.context.current_entry,
+                parsed.repo != parser.get_default("repo"),
+            ]
+        )
 
         if has_filters:
             types = parsed.type_.split(",") if parsed.type_ else None
             files = self._candidate_files(parsed.entry, parsed.repo)
-            matched = filter_files(files, types=types, milestone=parsed.milestone, version=parsed.version)
+            try:
+                matched = filter_files(files, types=types, milestone=parsed.milestone, version=parsed.version)
+            except ValueError as exc:
+                raise _ArgumentParserError(f"invalid --version value: {exc}") from exc
         else:
             matched = [a for a in (parse_wwpdb_filename(p) for p in self.context.current_selection) if a is not None]
 
@@ -128,7 +166,10 @@ class FilesCommands:
 
     def dispatch(self, argv: List[str]) -> None:
         if not argv:
-            self.printer.error("Usage: files <find|list|hash|info|plugin-name> [args...]")
+            usage = "Usage: files <find|list|hash|info|plugin-name> [args...]"
+            if self.plugins:
+                usage += f" (loaded plugins: {', '.join(sorted(self.plugins))})"
+            self.printer.error(usage)
             return
 
         action, rest = argv[0], argv[1:]
@@ -154,4 +195,8 @@ class FilesCommands:
             self.printer.error(f"Unknown files action '{action}'")
             return
 
-        plugin.run(self.context.current_selection)
+        kwargs = _parse_plugin_kwargs(rest)
+        try:
+            plugin.run(self.context.current_selection, **kwargs)
+        except Exception as exc:
+            self.printer.error(f"files {action}: {exc}")

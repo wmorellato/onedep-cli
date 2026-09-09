@@ -27,6 +27,25 @@ class RecordingPlugin(FilePlugin):
         self.calls.append(list(files))
 
 
+class RaisingPlugin(FilePlugin):
+    name = "explode"
+    help = "Always raises"
+
+    def run(self, files, **kwargs):
+        raise RuntimeError("plugin boom")
+
+
+class KwargsRecordingPlugin(FilePlugin):
+    name = "kwrecord"
+    help = "Records the kwargs it was called with"
+
+    def __init__(self):
+        self.last_kwargs = None
+
+    def run(self, files, **kwargs):
+        self.last_kwargs = kwargs
+
+
 class _App(FilesCommands):
     def __init__(self, context, resolver, plugins, stream):
         self.context = context
@@ -44,14 +63,16 @@ def app(tmp_path, monkeypatch):
 
     stream = StringIO()
     plugin = RecordingPlugin()
+    kwargs_plugin = KwargsRecordingPlugin()
     application = _App(
         context=ShellContext(),
         resolver=EntryPathResolver(path_info=FakePathInfo()),
-        plugins={"record": plugin},
+        plugins={"record": plugin, "explode": RaisingPlugin(), "kwrecord": kwargs_plugin},
         stream=stream,
     )
     application._stream = stream
     application._plugin = plugin
+    application._kwargs_plugin = kwargs_plugin
     return application
 
 
@@ -117,6 +138,26 @@ def test_unknown_action_reports_error(app):
     assert "Unknown files action" in app._stream.getvalue()
 
 
+def test_find_with_current_entry_and_no_filters_lists_entry_archive_directory(app):
+    app.context.set_entry("D_800000")
+
+    app.dispatch(["find"])
+
+    output = app._stream.getvalue()
+    assert "D_800000_model_P1.cif.V1" in output
+    assert "D_800000_sf_P1.cif.V1" in output
+
+
+def test_find_with_repo_override_and_no_entry_falls_back_to_cwd(app):
+    # No entry set, so --repo alone has nowhere to resolve an entry-scoped
+    # directory to; this must fall through to the existing cwd-based
+    # candidate lookup rather than silently returning nothing.
+    app.dispatch(["find", "--repo", "deposit"])
+
+    output = app._stream.getvalue()
+    assert "D_800000_model_P1.cif.V1" in output
+
+
 def test_dispatch_with_no_args_reports_usage(app):
     app.dispatch([])
 
@@ -130,6 +171,39 @@ def test_dispatch_to_plugin_passes_current_selection(app):
     app.dispatch(["record"])
 
     assert app._plugin.calls == [selection]
+
+
+def test_plugin_exception_is_reported_and_does_not_propagate(app):
+    app.dispatch(["explode"])
+
+    assert "plugin boom" in app._stream.getvalue()
+
+
+def test_plugin_receives_parsed_keyword_arguments(app):
+    app.dispatch(["kwrecord", "--dest", "/tmp", "--verbose"])
+
+    assert app._kwargs_plugin.last_kwargs == {"dest": "/tmp", "verbose": True}
+
+
+def test_plugin_with_no_extra_args_gets_empty_kwargs(app):
+    app.dispatch(["kwrecord"])
+
+    assert app._kwargs_plugin.last_kwargs == {}
+
+
+def test_dispatch_usage_message_lists_loaded_plugin_names(app):
+    app.dispatch([])
+
+    output = app._stream.getvalue()
+    assert "record" in output
+    assert "explode" in output
+    assert "kwrecord" in output
+
+
+def test_find_with_bad_version_reports_clean_error(app):
+    app.dispatch(["find", "--type", "model", "--version", "abc"])
+
+    assert "files find" in app._stream.getvalue()
 
 
 def test_invalid_flag_reports_error_without_crashing(app):

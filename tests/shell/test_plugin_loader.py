@@ -1,5 +1,4 @@
 import logging
-from pathlib import Path
 
 from onedep_manager.shell.plugin_loader import FilePlugin, load_plugins
 
