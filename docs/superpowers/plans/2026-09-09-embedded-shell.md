@@ -342,8 +342,8 @@ class EntryPathResolver:
     def resolve(self, entry_id: str, repo: str) -> Path:
         try:
             getter = _REPO_GETTERS[repo]
-        except KeyError:
-            raise UnknownRepositoryError(f"Unknown repository '{repo}'. Valid repositories: {', '.join(sorted(_REPO_GETTERS))}")
+        except KeyError as exc:
+            raise UnknownRepositoryError(f"Unknown repository '{repo}'. Valid repositories: {', '.join(sorted(_REPO_GETTERS))}") from exc
         return Path(getter(self._path_info, entry_id))
 
     @property
@@ -980,8 +980,8 @@ class ScriptRegistry:
     def run(self, name: str, args: Optional[List[str]] = None) -> int:
         try:
             meta = self._scripts[name]
-        except KeyError:
-            raise ScriptNotFoundError(f"Script '{name}' is not registered")
+        except KeyError as exc:
+            raise ScriptNotFoundError(f"Script '{name}' is not registered") from exc
 
         command = [str(meta.path)] + list(args or [])
         result = subprocess.run(command)
