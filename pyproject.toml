@@ -8,13 +8,14 @@ authors = ["Weslley Morellato Bueno <wbueno@ebi.ac.uk>"]
 onedep-manager = "onedep_manager.main:cli"
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.9"
 click = "^8.1"
-rich = "^13.0"
-pyyaml = "^6.0"
+cmd2 = "^2.7"
 gitpython = "^3.1"
 paramiko = "^3.0"
 psutil = "^5.9"
+pyyaml = "^6.0"
+rich = "^13.0"
 # wwpdb.utils.config / wwpdb.io / wwpdb.utils.config are internal wwPDB
 # packages, not published to public PyPI. This project has always relied on
 # them being available in the environment some other way (private index,
@@ -27,7 +28,7 @@ ruff = "^0.6"
 
 [tool.ruff]
 line-length = 200
-target-version = "py38"
+target-version = "py39"
 
 [tool.ruff.lint]
 select = ["E", "F", "B"]
