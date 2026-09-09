@@ -1501,7 +1501,6 @@ git commit -m "Add files find/list/hash/info commands with plugin dispatch"
 # tests/shell/test_app.py
 import sys
 import types
-from pathlib import Path
 from unittest import mock
 
 import click
