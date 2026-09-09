@@ -2,6 +2,7 @@ import os
 import yaml
 
 from onedep_manager.schemas import Service
+from onedep_manager.exceptions import ServiceNotFoundError
 from wwpdb.utils.config.ConfigInfo import ConfigInfo
 
 
@@ -41,7 +42,7 @@ class Config:
             if service["name"] == name:
                 return Service(**service)
 
-        raise Exception(f"Service {name} not found in config")
+        raise ServiceNotFoundError(f"Service {name} not found in config")
 
     def from_site(self, variable: str):
         return self._odconfig.get(variable)

@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Install dependencies
+        run: poetry install --with dev
+        # NOTE: wwpdb.utils.config / wwpdb.io are internal wwPDB packages not
+        # published to public PyPI and are not declared in pyproject.toml
+        # (see the comment there). This runner needs them available some
+        # other way -- a private index configured on the runner/organization,
+        # or pre-installed in a custom runner image -- before this step will
+        # succeed. See CODE_REVIEW_REPORT.md / REFACTORING_PLAN.md for context.
+
+      - name: Lint
+        run: poetry run ruff check onedep_manager tests
+
+      - name: Test
+        run: poetry run pytest -q

@@ -46,6 +46,11 @@ def test_update(monkeypatch, mock_config):
     )
 
     monkeypatch.setattr(
+        "onedep_manager.cli.packages.install_package",
+        lambda source, edit=False: True,
+    )
+
+    monkeypatch.setattr(
         "onedep_manager.cli.packages.get_package",
         lambda name=None, branch=None: PackageDistribution(name="wwpdb.utils.config", version="0.2.0", path="/foo/bar/wwpdb.utils.config", branch="master"),
     )
@@ -73,6 +78,11 @@ def test_install_dev(monkeypatch, mock_config):
     monkeypatch.setattr("onedep_manager.cli.packages.clone",
                         lambda package_name, reference="develop": "/foo/bar/wwpdb.utils.config")
 
+    monkeypatch.setattr(
+        "onedep_manager.cli.packages.install_package",
+        lambda source, edit=False: True,
+    )
+
     runner = CliRunner()
     result = runner.invoke(install, ["-d", "wwpdb.utils.config"])
 
@@ -89,8 +99,13 @@ def test_install(monkeypatch, mock_config):
         lambda name=None, branch=None: PackageDistribution(name="wwpdb.utils.config", version="0.1.0", path="/foo/bar/wwpdb.utils.config"),
     )
 
-    monkeypatch.setattr("onedep_manager.packages.clone",
+    monkeypatch.setattr("onedep_manager.cli.packages.clone",
                         lambda package_name, reference="develop": "/foo/bar/wwpdb.utils.config")
+
+    monkeypatch.setattr(
+        "onedep_manager.cli.packages.install_package",
+        lambda source, edit=False: True,
+    )
 
     runner = CliRunner()
     result = runner.invoke(install, ["wwpdb.utils.config"])

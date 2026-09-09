@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 from click.testing import CliRunner
 
 from onedep_manager.cli.services import start, stop, status
+from onedep_manager.cli.common import CLIContext
 from wwpdb.utils.config.ConfigInfoData import ConfigInfoData
 from onedep_manager.services.schemas import Status, InstanceStatus
 
@@ -27,7 +28,7 @@ def test_start_service(mock_config, monkeypatch):
     monkeypatch.setattr("onedep_manager.cli.services.LocalDispatcher", mock_dispatch)
 
     runner = CliRunner()
-    result = runner.invoke(start, ["foo", "-l"])
+    result = runner.invoke(start, ["foo", "-l"], obj=CLIContext(config=MagicMock()))
 
     assert result.exit_code == 0
     assert "localhost" in result.output
@@ -40,7 +41,7 @@ def test_stop_service(mock_config, monkeypatch):
     monkeypatch.setattr("onedep_manager.cli.services.LocalDispatcher", mock_dispatch)
 
     runner = CliRunner()
-    result = runner.invoke(stop, ["foo", "-l"])
+    result = runner.invoke(stop, ["foo", "-l"], obj=CLIContext(config=MagicMock()))
 
     assert result.exit_code == 0
     assert "localhost" in result.output
@@ -53,7 +54,7 @@ def test_service_status(mock_config, monkeypatch):
     monkeypatch.setattr("onedep_manager.cli.services.LocalDispatcher", mock_dispatch)
 
     runner = CliRunner()
-    result = runner.invoke(status, ["foo", "-l"])
+    result = runner.invoke(status, ["foo", "-l"], obj=CLIContext(config=MagicMock()))
 
     assert result.exit_code == 0
     assert "localhost" in result.output

@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass
@@ -15,4 +15,5 @@ class PackageDistribution:
     version: str
     path: str
     branch: str = None
+    dirty: bool = False
     editable: bool = False

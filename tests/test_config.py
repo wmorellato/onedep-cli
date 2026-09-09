@@ -1,6 +1,7 @@
 import pytest
 
 from onedep_manager.config import Config
+from onedep_manager.exceptions import ServiceNotFoundError
 
 
 def test_get_services():
@@ -17,5 +18,5 @@ def test_single_service():
     assert config.get_service("apache").name == "apache"
     assert config.get_service("apache").handler == "tests.test_services.HandlerTest"
 
-    with pytest.raises(Exception):
+    with pytest.raises(ServiceNotFoundError):
         config.get_service("bar")

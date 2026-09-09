@@ -1,6 +1,6 @@
 import os
-from typing import Optional, List, Tuple
-from rich.console import Console, Group
+from typing import Optional, List
+from rich.console import Console
 from rich.panel import Panel
 
 from onedep_manager.config import Config

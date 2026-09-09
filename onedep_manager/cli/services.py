@@ -1,10 +1,8 @@
 import click
-import logging
 from rich import console
 
-from onedep_manager.services.dispatcher import LocalDispatcher, RemoteDispatcher
-from onedep_manager.cli.common import ConsolePrinter
-from onedep_manager.config import Config
+from onedep_manager.services import LocalDispatcher, RemoteDispatcher
+from onedep_manager.cli.common import ConsolePrinter, get_config
 
 
 @click.group(name="services", help="Manage OneDep services")
@@ -15,9 +13,10 @@ def services_group():
 @services_group.command(name="start", help="Start the service on all registered services or locally only.")
 @click.argument("service")
 @click.option("-l", "--local", "local", is_flag=True, default=False, help="If set, perform operations only on the current host.")
-def start(service, local):
+@click.pass_context
+def start(ctx, service, local):
     """`start` command handler"""
-    config = Config()
+    config = get_config(ctx)
     c = console.Console()
     printer = ConsolePrinter(console=c)
 
@@ -45,9 +44,10 @@ def start(service, local):
 @click.argument("service")
 @click.option("-f", "--force", "force", is_flag=True, default=False, help="If set, will forcefully kill services' processes.")
 @click.option("-l", "--local", "local", is_flag=True, default=False, help="If set, perform operations only on the current host.")
-def stop(service, force, local):
+@click.pass_context
+def stop(ctx, service, force, local):
     """`stop` command handler"""
-    config = Config()
+    config = get_config(ctx)
     c = console.Console()
     printer = ConsolePrinter(console=c)
 
@@ -75,9 +75,10 @@ def stop(service, force, local):
 @click.argument("service")
 @click.option("-f", "--force", "force", is_flag=True, default=False, help="If set, will forcefully kill services' processes.")
 @click.option("-l", "--local", "local", is_flag=True, default=False, help="If set, perform operations only on the current host.")
-def restart(service, force, local):
+@click.pass_context
+def restart(ctx, service, force, local):
     """`restart` command handler"""
-    config = Config()
+    config = get_config(ctx)
     c = console.Console()
     printer = ConsolePrinter(console=c)
 
@@ -104,9 +105,10 @@ def restart(service, force, local):
 @services_group.command(name="status", help="Check the status of a service on all registered services or locally only.")
 @click.argument("service")
 @click.option("-l", "--local", "local", is_flag=True, default=False, help="If set, perform operations only on the current host.")
-def status(service, local):
+@click.pass_context
+def status(ctx, service, local):
     """`status` command handler"""
-    config = Config()
+    config = get_config(ctx)
     c = console.Console()
     printer = ConsolePrinter(console=c)
 

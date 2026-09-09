@@ -55,7 +55,11 @@ cli:
     description: Manage OneDep Python packages
     arguments:
       package:
-        description: Part of or full package name. If set to 'all', will perform operations on all packages.
+        description: >-
+          Part of or full package name. 'all' means every ONEDEP_PACKAGES entry for `install`
+          (installed or not, for bootstrapping a fresh instance), but every already-installed
+          package containing 'wwpdb' for `update`/`checkout`/`get` (deliberately broader than
+          ONEDEP_PACKAGES, so those commands also surface packages installed outside that list).
         type: string
     commands:
       install:

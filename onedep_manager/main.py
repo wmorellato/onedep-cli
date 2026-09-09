@@ -1,4 +1,6 @@
 import click
+from onedep_manager.config import Config
+from onedep_manager.cli.common import CLIContext
 from onedep_manager.cli.services import services_group
 from onedep_manager.cli.tools import tools_group
 from onedep_manager.cli.packages import packages_group
@@ -8,8 +10,10 @@ from onedep_manager.cli.paths import paths_group
 
 
 @click.group()
-def cli():
+@click.pass_context
+def cli(ctx):
     """CLI entry point"""
+    ctx.obj = CLIContext(config=Config())
 
 
 cli.add_command(services_group)

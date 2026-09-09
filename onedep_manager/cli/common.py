@@ -1,21 +1,46 @@
 import sys
 import json
-from abc import ABC
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
 
 from rich import print_json
 from rich.table import Table
 
+from onedep_manager.config import Config
+
+
+@dataclass
+class CLIContext:
+    config: Config
+
+
+def get_config(ctx) -> Config:
+    """Return the shared Config from the root CLI context.
+
+    Falls back to constructing a fresh Config() when a command is invoked
+    directly without going through the root `cli()` group (e.g. tests that
+    invoke a leaf command via CliRunner without setting `obj=`), so this is
+    backward compatible with call sites that don't go through the full CLI.
+    """
+    if ctx.obj is not None:
+        return ctx.obj.config
+    return Config()
+
 
 class Printer(ABC):
+    @abstractmethod
     def json(self, data: dict):
         raise NotImplementedError()
 
+    @abstractmethod
     def table(self, header: list, data: list):
         raise NotImplementedError()
-    
+
+    @abstractmethod
     def info(self, message):
         raise NotImplementedError()
-    
+
+    @abstractmethod
     def error(self, message):
         raise NotImplementedError()
 
@@ -36,6 +61,14 @@ class RawPrinter(Printer):
             self._stream.write("  ".join(row))
             self._stream.write("\n")
 
+        self._stream.flush()
+
+    def info(self, message):
+        self._stream.write(f"{message}\n")
+        self._stream.flush()
+
+    def error(self, message):
+        self._stream.write(f"{message}\n")
         self._stream.flush()
 
 

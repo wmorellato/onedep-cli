@@ -2,12 +2,13 @@ import socket
 import logging
 import importlib
 
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import List
 from paramiko.client import SSHClient
 from paramiko.ssh_exception import SSHException, AuthenticationException
 
 from onedep_manager.config import Config
+from onedep_manager.exceptions import HandlerLoadError
 from onedep_manager.services.schemas import Status, InstanceStatus, Commands
 
 from wwpdb.utils.config.ConfigInfo import ConfigInfo, getSiteId
@@ -22,9 +23,11 @@ class Dispatcher(ABC):
     def __init__(self, config: Config) -> None:
         super().__init__()
 
+    @abstractmethod
     def start_service(self, service: str) -> InstanceStatus:
         raise NotImplementedError()
 
+    @abstractmethod
     def stop_service(self, service: str) -> InstanceStatus:
         raise NotImplementedError()
 
@@ -44,57 +47,56 @@ class LocalDispatcher(Dispatcher):
 
         try:
             mod = importlib.import_module(module)
-            handler = getattr(mod, klass)
-            return handler
+            return getattr(mod, klass)
         except Exception as e:
-            raise Exception(f"Could not load handler {handler}: {e}")
+            raise HandlerLoadError(f"Could not load handler {handler}: {e}") from e
 
     def start_service(self, service: str) -> List[InstanceStatus]:
         serv = self._config.get_service(service)
         handler = self._get_handler(serv.handler)
-        status = Status.UNKNOWN
-        
+
         try:
-            status = handler().start()
-        except:
+            status = handler(self._config).start()
+        except Exception as e:
+            logger.error("Failed to start service '%s': %s", service, e, exc_info=True)
             return [InstanceStatus(hostname=self._hostname, status=Status.FAILED)]
-        
+
         return [InstanceStatus(hostname=self._hostname, status=status)]
 
     def stop_service(self, service: str) -> InstanceStatus:
         serv = self._config.get_service(service)
         handler = self._get_handler(serv.handler)
-        status = Status.UNKNOWN
 
         try:
-            status = handler().stop()
-        except:
+            status = handler(self._config).stop()
+        except Exception as e:
+            logger.error("Failed to stop service '%s': %s", service, e, exc_info=True)
             return [InstanceStatus(hostname=self._hostname, status=Status.FAILED)]
-        
+
         return [InstanceStatus(hostname=self._hostname, status=status)]
 
     def restart_service(self, service: str) -> InstanceStatus:
         serv = self._config.get_service(service)
         handler = self._get_handler(serv.handler)
-        status = Status.UNKNOWN
 
         try:
-            status = handler().restart()
-        except:
+            status = handler(self._config).restart()
+        except Exception as e:
+            logger.error("Failed to restart service '%s': %s", service, e, exc_info=True)
             return [InstanceStatus(hostname=self._hostname, status=Status.FAILED)]
-        
+
         return [InstanceStatus(hostname=self._hostname, status=status)]
 
     def get_status(self, service: str) -> InstanceStatus:
         serv = self._config.get_service(service)
         handler = self._get_handler(serv.handler)
-        status = Status.UNKNOWN
-        
+
         try:
-            status = handler().status()
-        except:
+            status = handler(self._config).status()
+        except Exception as e:
+            logger.error("Failed to get status of service '%s': %s", service, e, exc_info=True)
             return [InstanceStatus(hostname=self._hostname, status=Status.FAILED)]
-        
+
         return [InstanceStatus(hostname=self._hostname, status=status)]
 
 
@@ -128,11 +130,11 @@ class RemoteDispatcher(Dispatcher):
             logger.error("Couldn't connect to host %s", host, exc_info=True)
             return InstanceStatus(hostname=host, status=Status.FAILED)
 
-        status = stdout.read().decode("utf-8").strip()
-        if Status(status) != Status.RUNNING:
+        status = Status(stdout.read().decode("utf-8").strip())
+        if status != Status.RUNNING:
             return InstanceStatus(hostname=host, status=Status.FAILED)
 
-        return InstanceStatus(hostname=host, status=Status(status))
+        return InstanceStatus(hostname=host, status=status)
 
     def start_service(self, service: str) -> List[InstanceStatus]:
         status = []

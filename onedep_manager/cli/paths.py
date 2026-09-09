@@ -3,8 +3,7 @@ import click
 from rich.console import Console
 from pathlib import Path
 
-from onedep_manager.cli.common import ConsolePrinter
-from onedep_manager.config import Config
+from onedep_manager.cli.common import ConsolePrinter, get_config
 from onedep_manager.packages import get_package
 
 from wwpdb.io.locator.PathInfo import PathInfo
@@ -21,13 +20,14 @@ def paths_group():
 @click.argument("type_")
 @click.argument("identifier")
 @click.option("-i", "--site", "site", help="wwPDB site ID (e.g. WWPDB_DEPLOY_TEST_RU). Defaults to the current site.")
-def get(type_, identifier, site):
+@click.pass_context
+def get(ctx, type_, identifier, site):
     """`get` command handler
     If no error happens, this must return the path only.
     """
     c = Console()
     printer = ConsolePrinter(console=c)
-    config = Config()
+    config = get_config(ctx)
     pathinfo = PathInfo()
     ccdpathinfo = ChemRefPathInfo()
 
@@ -56,7 +56,11 @@ def get(type_, identifier, site):
     elif type_ == 'ccid':
         print(ccdpathinfo.getFilePath(idCode=identifier))
     elif type_ == 'package':
-        print(get_package(identifier).path)
+        pkg = get_package(identifier)
+        if pkg is None:
+            printer.error(f"Package '{identifier}' not found")
+            return
+        print(pkg.path)
     elif type_ == 'wfxml':
         print(os.path.join(config.from_site("SITE_WF_XML_PATH"), f"{identifier}.xml"))
     elif type_ == 'tool':
@@ -65,7 +69,8 @@ def get(type_, identifier, site):
 
 @paths_group.command(name="generate-funcs", help="Generate .onedep_funcs bash file with environment variables and helper functions")
 @click.option("-i", "--site", "site", help="wwPDB site ID (e.g. WWPDB_DEPLOY_TEST_RU). Defaults to the current site.")
-def generate_funcs(site):
+@click.pass_context
+def generate_funcs(ctx, site):
     """`generate-funcs` command handler
     Creates a .onedep_funcs file in the home directory with export statements
     and helper functions for cd and ls operations.
@@ -75,7 +80,7 @@ def generate_funcs(site):
 
     c = Console()
     printer = ConsolePrinter(console=c)
-    config = Config()
+    config = get_config(ctx)
     mock_dep_id = "D_000000"
     pi = PathInfo(siteId=site)
 
@@ -114,7 +119,7 @@ def generate_funcs(site):
     ]
 
     # Add export statements
-    for type_name, var_suffix, func_suffix, path_getter in all_path_mappings:
+    for type_name, var_suffix, _func_suffix, path_getter in all_path_mappings:
         try:
             base_path = path_getter()
             lines.append(f"export ODM_{var_suffix}=\"{base_path}\"")
@@ -125,30 +130,30 @@ def generate_funcs(site):
     lines.append("")
 
     # Add cd functions for regular paths
-    for type_name, var_suffix, func_suffix, _ in regular_path_mappings:
+    for _type_name, var_suffix, func_suffix, _ in regular_path_mappings:
         lines.extend([
             f"function cd{func_suffix}() {{",
             f"    local path=\"$ODM_{var_suffix}/$1\"",
-            f"    if [ ! -d \"$path\" ]; then",
-            f"        echo \"Error: directory not found: $path\"",
-            f"        return 1",
-            f"    fi",
-            f"    cd \"$path\" || return 1",
-            f"}}",
+            "    if [ ! -d \"$path\" ]; then",
+            "        echo \"Error: directory not found: $path\"",
+            "        return 1",
+            "    fi",
+            "    cd \"$path\" || return 1",
+            "}",
             "",
         ])
 
     # Add ls functions for regular paths
-    for type_name, var_suffix, func_suffix, _ in regular_path_mappings:
+    for _type_name, var_suffix, func_suffix, _ in regular_path_mappings:
         lines.extend([
             f"function ls{func_suffix}() {{",
             f"    local path=\"$ODM_{var_suffix}/$1\"",
-            f"    if [ ! -d \"$path\" ]; then",
-            f"        echo \"Error: directory not found: $path\"",
-            f"        return 1",
-            f"    fi",
-            f"    ls -lah \"$path\"",
-            f"}}",
+            "    if [ ! -d \"$path\" ]; then",
+            "        echo \"Error: directory not found: $path\"",
+            "        return 1",
+            "    fi",
+            "    ls -lah \"$path\"",
+            "}",
             "",
         ])
 

@@ -10,17 +10,41 @@ from onedep_manager.schemas import PackageDistribution
 from onedep_manager.config import Config
 
 
-lconfig = Config()
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-logger.propagate = False
-log_file = os.path.join(lconfig.ODM_CONFIG_DIR, "packages.log")
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
-file_handler = logging.FileHandler(log_file)
-file_handler.setLevel(logging.DEBUG)
-logger.addHandler(console_handler)
-logger.addHandler(file_handler)
+_logging_configured = False
+
+
+def _configure_logging():
+    """Attach handlers to the module logger on first use.
+
+    Deferred so importing this module doesn't do filesystem I/O (Config()
+    construction, log file creation) as a side effect.
+    """
+    global _logging_configured
+
+    if _logging_configured:
+        return
+
+    logger.setLevel(logging.DEBUG)
+    logger.propagate = False
+
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    logger.addHandler(console_handler)
+
+    # File logging needs a working site Config(); if that fails (e.g. no
+    # site configured), fall back to console-only rather than letting a
+    # logging-setup failure break the git/pip operation being logged.
+    try:
+        config = Config()
+        log_file = os.path.join(config.ODM_CONFIG_DIR, "packages.log")
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setLevel(logging.DEBUG)
+        logger.addHandler(file_handler)
+    except Exception:
+        logger.debug("Could not set up file logging for packages.log; using console logging only.", exc_info=True)
+
+    _logging_configured = True
 
 
 ONEDEP_PACKAGES = [
@@ -74,6 +98,8 @@ def install_package(source, version="latest", edit=False):
         bool: True if the package was installed successfully, False otherwise.
     """
 
+    _configure_logging()
+
     if version != "latest":
         source = f"{source}=={version}"
 
@@ -82,11 +108,15 @@ def install_package(source, version="latest", edit=False):
             result = subprocess.run(["pip", "install", "-U", "-e", source], text=True, capture_output=True)
         else:
             result = subprocess.run(["pip", "install", "-U", source], text=True, capture_output=True)
-
-        logger.debug(result.stdout.strip())
-        logger.debug(result.stderr.strip())
-    except Exception as e:
+    except OSError as e:
         logger.error(e)
+        return False
+
+    logger.debug(result.stdout.strip())
+    logger.debug(result.stderr.strip())
+
+    if result.returncode != 0:
+        logger.error("pip install failed for '%s': %s", source, result.stderr.strip())
         return False
 
     return True
@@ -99,6 +129,8 @@ def setup_pip_env(cs_user, cs_pass, cs_url):
     Returns:
         bool: True if the environment was setup successfully, False otherwise.
     """
+    _configure_logging()
+
     urlreq = urllib.parse.urlparse(cs_url)
     urlpath = "{}://{}:{}@{}{}/dist/simple/".format(urlreq.scheme, cs_user, cs_pass, urlreq.netloc, urlreq.path)
 
@@ -108,15 +140,19 @@ def setup_pip_env(cs_user, cs_pass, cs_url):
         ["pip", "config", "--site", "set", "global.no-cache-dir", "false"],
     ]
 
-    try:
-        for command in commands:
+    for command in commands:
+        try:
             result = subprocess.run(command, text=True, capture_output=True)
+        except OSError as e:
+            logger.error(e)
+            return False
 
-            logger.debug(result.stdout.strip())
-            logger.debug(result.stderr.strip())
-    except Exception as e:
-        logger.error(e)
-        return False
+        logger.debug(result.stdout.strip())
+        logger.debug(result.stderr.strip())
+
+        if result.returncode != 0:
+            logger.error("Command failed: %s -> %s", " ".join(command), result.stderr.strip())
+            return False
 
     return True
 
@@ -163,14 +199,15 @@ def get_package(name, branch=True):
         distribution = metadata.distribution(name)
     except metadata.PackageNotFoundError:
         return None
-    
+
     package_name = distribution.metadata["Name"]
     package_version = distribution.metadata["Version"]
     package_path = _get_distribution_path(distribution)
     package_branch = _get_branch(package_path) if branch else None
+    package_dirty = _is_dirty(package_path) if branch else False
     package_editable = _is_editable(distribution)
 
-    return PackageDistribution(name=package_name, version=package_version, path=package_path, branch=package_branch, editable=package_editable)
+    return PackageDistribution(name=package_name, version=package_version, path=package_path, branch=package_branch, dirty=package_dirty, editable=package_editable)
 
 
 def get_wwpdb_packages(name="wwpdb", branch=True):
@@ -186,48 +223,76 @@ def get_wwpdb_packages(name="wwpdb", branch=True):
         package_version = distribution.metadata["Version"]
         package_path = _get_distribution_path(distribution)
         package_branch = _get_branch(package_path) if branch else None
+        package_dirty = _is_dirty(package_path) if branch else False
         package_editable = _is_editable(distribution)
 
-        yield PackageDistribution(name=package_name, version=package_version, path=package_path, branch=package_branch, editable=package_editable)
+        yield PackageDistribution(name=package_name, version=package_version, path=package_path, branch=package_branch, dirty=package_dirty, editable=package_editable)
 
 
 def _get_branch(path):
+    """Return the plain branch/ref name for the repo at `path`, or None.
+
+    Display-only decoration (e.g. a dirty marker) does not belong here:
+    this value is also used verbatim as a git ref by callers like pull().
+    See _is_dirty() for the dirty-state flag.
+    """
     if path is None:
         return None
 
     try:
         repo = git.Repo(path)
-        is_dirty = "*" if repo.is_dirty() else ""
-        return f"{repo.active_branch.name}{is_dirty}"
+        return repo.active_branch.name
     except TypeError:
         return repo.head.name
-    except:
+    except git.GitError as e:
+        logger.debug("Could not read branch for '%s': %s", path, e)
         return None
 
 
+def _is_dirty(path):
+    if path is None:
+        return False
+
+    try:
+        repo = git.Repo(path)
+        return repo.is_dirty()
+    except git.GitError as e:
+        logger.debug("Could not read dirty state for '%s': %s", path, e)
+        return False
+
+
 def switch_reference(package: PackageDistribution, reference="master"):
+    _configure_logging()
+
     try:
         repo = git.Repo(package.path)
         repo.git.checkout(reference)
-    except:
+    except git.GitError as e:
+        logger.error("Failed to checkout '%s' to '%s': %s", package.name, reference, e)
         return False
 
     return True
 
 
 def pull(package: PackageDistribution):
+    _configure_logging()
+
     try:
         repo = git.Repo(package.path)
         repo.git.pull("origin", package.branch)
-    except:
+    except git.GitError as e:
+        logger.error("Failed to pull '%s': %s", package.name, e)
         return False
 
     return True
 
 
 def clone(package_name: str, reference="develop"):
+    _configure_logging()
+
     config = Config()
     source_dir = os.path.join(config.from_site("SITE_DEPLOY_PATH"), "source")
+    package_dir = os.path.join(source_dir, package_name)
 
     if not os.path.exists(source_dir):
         os.makedirs(source_dir)
@@ -235,9 +300,10 @@ def clone(package_name: str, reference="develop"):
     package_url = f"https://github.com/{config.GITHUB_PACKAGE_HOST}/{package_name}.git"
 
     try:
-        repo = git.Repo.clone_from(package_url, source_dir)
+        repo = git.Repo.clone_from(package_url, package_dir)
         repo.git.checkout(reference)
-    except:
+    except git.GitError as e:
+        logger.error("Failed to clone '%s': %s", package_name, e)
         return None
 
-    return os.path.join(source_dir, package_name)
+    return package_dir
