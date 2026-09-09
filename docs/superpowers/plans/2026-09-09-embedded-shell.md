@@ -1597,7 +1597,13 @@ def test_files_command_dispatches_through_files_commands_mixin(tmp_path, monkeyp
     assert "D_800000_model_P1.cif.V1" in capsys.readouterr().out
 
 
-def test_scripts_list_and_run(tmp_path, capsys):
+def test_scripts_list_and_run(tmp_path, capfd):
+    # capfd, not capsys: `run hello.sh` shells out via subprocess.run(),
+    # which writes to the inherited OS file descriptor directly -- capsys
+    # only intercepts the sys.stdout Python object and would see nothing
+    # for that half. Task 6's own test_scripts.py uses capfd for the same
+    # reason; capfd also sees plain Python stdout writes (like `list`'s),
+    # so one fixture covers both assertions here.
     scripts_dir = tmp_path / "scripts"
     scripts_dir.mkdir()
     script = scripts_dir / "hello.sh"
@@ -1608,10 +1614,10 @@ def test_scripts_list_and_run(tmp_path, capsys):
     shell = _shell(tmp_path)
 
     shell.do_scripts("list --tag demo")
-    assert "hello.sh" in capsys.readouterr().out
+    assert "hello.sh" in capfd.readouterr().out
 
     shell.do_scripts("run hello.sh")
-    assert "hi" in capsys.readouterr().out
+    assert "hi" in capfd.readouterr().out
 
 
 def test_scripts_run_unregistered_reports_error(tmp_path, capsys):
@@ -1665,6 +1671,22 @@ _SHELL_PACKAGE_DIR = Path(__file__).parent
 DEFAULT_PLUGIN_DIRS = [_SHELL_PACKAGE_DIR / "plugins", Path.home() / ".onedep" / "shell" / "plugins"]
 DEFAULT_SCRIPT_DIRS = [_SHELL_PACKAGE_DIR / "scripts", Path.home() / ".onedep" / "shell" / "scripts"]
 
+# Rich's Table (used by files find/list/hash/info) truncates cells -- e.g.
+# long archive paths, full md5 hashes -- to fit the console width, and
+# rich.Console() falls back to a fixed 80-column width whenever stdout
+# isn't a real terminal (piped/redirected output, or pytest's captured
+# output). That's too narrow for output where the exact path/hash matters,
+# so it's widened only in that non-interactive case; a real terminal keeps
+# its own auto-detected width untouched.
+_NON_TERMINAL_CONSOLE_WIDTH = 200
+
+
+def _build_console() -> Console:
+    console = Console()
+    if not console.is_terminal:
+        console.width = _NON_TERMINAL_CONSOLE_WIDTH
+    return console
+
 
 class OneDepShell(FilesCommands, cmd2.Cmd):
     """Interactive shell launched by `onedep-manager shell`."""
@@ -1683,7 +1705,7 @@ class OneDepShell(FilesCommands, cmd2.Cmd):
         self.config = config or Config()
         self.context = ShellContext()
         self.resolver = resolver or EntryPathResolver(site=site)
-        self.printer = ConsolePrinter(console=Console())
+        self.printer = ConsolePrinter(console=_build_console())
         self.plugins = load_plugins(plugin_dirs if plugin_dirs is not None else DEFAULT_PLUGIN_DIRS)
         self.scripts = ScriptRegistry(script_dirs if script_dirs is not None else DEFAULT_SCRIPT_DIRS)
 
