@@ -1,0 +1,214 @@
+import importlib
+import logging
+import shlex
+import subprocess
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+
+import click
+from textual.app import App, ComposeResult, SuspendNotSupported
+from textual.containers import Vertical
+from textual.widgets import RichLog
+
+from onedep_manager.cli.common import CLIContext
+from onedep_manager.config import Config
+from onedep_manager.shell.bridging import invoke_click_group
+from onedep_manager.shell.context import ShellContext
+from onedep_manager.shell.files import FilesCommands
+from onedep_manager.shell.plugin_loader import load_plugins
+from onedep_manager.shell.resolver import EntryPathResolver
+from onedep_manager.shell.scripts import ScriptNotFoundError, ScriptRegistry
+from onedep_manager.shell.tui.input import HistoryInput
+from onedep_manager.shell.tui.panels import EntrySelectionPanel, Panel
+from onedep_manager.shell.tui.printer import TextualPrinter
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_CLI_GROUP_IMPORTS: List[Tuple[str, str, str]] = [
+    ("services", "onedep_manager.cli.services", "services_group"),
+    ("tools", "onedep_manager.cli.tools", "tools_group"),
+    ("packages", "onedep_manager.cli.packages", "packages_group"),
+    ("instance", "onedep_manager.cli.instance", "instance_group"),
+    ("config", "onedep_manager.cli.config", "config_group"),
+    ("paths", "onedep_manager.cli.paths", "paths_group"),
+]
+
+_SHELL_PACKAGE_DIR = Path(__file__).parent.parent
+DEFAULT_PLUGIN_DIRS = [_SHELL_PACKAGE_DIR / "plugins", Path.home() / ".onedep" / "shell" / "plugins"]
+DEFAULT_SCRIPT_DIRS = [_SHELL_PACKAGE_DIR / "scripts", Path.home() / ".onedep" / "shell" / "scripts"]
+
+
+class OneDepTuiApp(FilesCommands, App):
+    """Interactive TUI shell launched by `onedep-manager shell`."""
+
+    CSS = """
+    #panels {
+        dock: top;
+        height: auto;
+        border: solid $accent;
+        padding: 0 1;
+    }
+
+    RichLog {
+        height: 1fr;
+    }
+
+    HistoryInput {
+        dock: bottom;
+    }
+    """
+
+    def __init__(
+        self,
+        config: Optional[Config] = None,
+        site: Optional[str] = None,
+        resolver: Optional[EntryPathResolver] = None,
+        plugin_dirs: Optional[List[Path]] = None,
+        script_dirs: Optional[List[Path]] = None,
+        cli_group_imports: Optional[List[Tuple[str, str, str]]] = None,
+    ):
+        super().__init__()
+
+        self.config = config or Config()
+        self.context = ShellContext()
+        self.resolver = resolver or EntryPathResolver(site=site)
+        self.plugins = load_plugins(plugin_dirs if plugin_dirs is not None else DEFAULT_PLUGIN_DIRS)
+        self.scripts = ScriptRegistry(script_dirs if script_dirs is not None else DEFAULT_SCRIPT_DIRS)
+        self._cli_group_imports = cli_group_imports if cli_group_imports is not None else DEFAULT_CLI_GROUP_IMPORTS
+        self._bridged_groups: Dict[str, click.Group] = {}
+        self._ctx_obj = CLIContext(config=self.config)
+        self.printer = None  # set in on_mount, once the RichLog exists
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="panels"):
+            yield EntrySelectionPanel(id="entry-panel")
+        yield RichLog(id="log", markup=False, wrap=True)
+        yield HistoryInput(id="cmdline", placeholder="command...")
+
+    def on_mount(self) -> None:
+        self.printer = TextualPrinter(self.query_one("#log", RichLog))
+        self._resolve_cli_groups()
+        self._refresh_panels()
+        self.query_one("#cmdline", HistoryInput).focus()
+
+    def _resolve_cli_groups(self) -> None:
+        for name, module_path, attr in self._cli_group_imports:
+            try:
+                module = importlib.import_module(module_path)
+                group = getattr(module, attr)
+            except (ImportError, AttributeError) as exc:
+                self.printer.error(f"Skipping '{name}' commands (missing dependency): {exc}")
+                continue
+            self._bridged_groups[name] = group
+
+    def _refresh_panels(self) -> None:
+        for panel in self.query(Panel):
+            panel.refresh_from_context(self.context)
+
+    def on_input_submitted(self, event: HistoryInput.Submitted) -> None:
+        input_widget = event.input
+        line = event.value
+        input_widget.add_to_history(line)
+        input_widget.value = ""
+
+        stripped = line.strip()
+        if not stripped:
+            return
+
+        if stripped.startswith("!"):
+            self._run_suspended(f"! {stripped}", lambda: subprocess.run(stripped[1:], shell=True))
+            self._refresh_panels()
+            return
+
+        args = shlex.split(stripped)
+        action, rest = args[0], args[1:]
+
+        if action == "entry":
+            self._do_entry(rest)
+        elif action == "files":
+            self.dispatch(rest)
+        elif action == "scripts":
+            self._do_scripts(rest)
+        elif action in ("quit", "exit"):
+            self.exit()
+            return
+        elif action in self._bridged_groups:
+            group = self._bridged_groups[action]
+            self._run_suspended(stripped, lambda: invoke_click_group(group, rest, ctx_obj=self._ctx_obj))
+        else:
+            self.printer.error(f"Unknown command '{action}'")
+
+        self._refresh_panels()
+
+    def _run_suspended(self, label: str, action) -> None:
+        try:
+            with self.suspend():
+                action()
+        except SuspendNotSupported:
+            self.printer.error(f"Cannot run '{label}' here: suspending the TUI isn't supported in this environment")
+
+    def _do_entry(self, args: List[str]) -> None:
+        if not args:
+            self.printer.info(self.context.current_entry or "No entry set")
+            return
+
+        entry_id = args[0]
+        self.context.set_entry(entry_id)
+
+        try:
+            archive_path = self.resolver.resolve(entry_id, "archive")
+            if not archive_path.is_dir():
+                self.printer.error(f"Entry '{entry_id}' resolved to '{archive_path}', which does not exist")
+        except Exception as exc:
+            self.printer.error(f"Could not resolve archive path for entry '{entry_id}': {exc}")
+
+    def _do_scripts(self, args: List[str]) -> None:
+        if not args:
+            self.printer.error("Usage: scripts <list|run> ...")
+            return
+
+        action, rest = args[0], args[1:]
+
+        if action == "list":
+            tag = None
+            if "--tag" in rest:
+                tag_index = rest.index("--tag")
+                if tag_index + 1 >= len(rest):
+                    self.printer.error("Usage: scripts list --tag <tag>")
+                    return
+                tag = rest[tag_index + 1]
+            for meta in self.scripts.list(tag=tag):
+                self.printer.info(f"{meta.name}\t{', '.join(meta.tags)}\t{meta.description}")
+            return
+
+        if action == "run":
+            if not rest:
+                self.printer.error("Usage: scripts run <name> [args...]")
+                return
+            try:
+                code = self._run_script(rest[0], rest[1:])
+            except ScriptNotFoundError as exc:
+                self.printer.error(str(exc))
+                return
+            except (OSError, PermissionError) as exc:
+                self.printer.error(f"scripts run {rest[0]}: {exc}")
+                return
+            if code != 0:
+                self.printer.error(f"Script exited with code {code}")
+            return
+
+        self.printer.error(f"Unknown scripts action '{action}'")
+
+    def _run_script(self, name: str, args: List[str]) -> int:
+        result = {}
+
+        def _run():
+            result["code"] = self.scripts.run(name, args)
+
+        try:
+            with self.suspend():
+                _run()
+        except SuspendNotSupported:
+            self.printer.error(f"Cannot run script '{name}' here: suspending the TUI isn't supported in this environment")
+            return 0
+        return result["code"]
