@@ -55,25 +55,33 @@ def test_script_without_sidecar_is_not_registered(tmp_path):
     assert registry.list() == []
 
 
-def test_run_executes_script_and_returns_exit_code(tmp_path, capfd):
+def test_run_executes_script_and_captures_output_and_exit_code(tmp_path):
     _write_script(tmp_path, "hello.sh", "#!/bin/sh\necho hi\nexit 3\n")
 
     registry = ScriptRegistry([tmp_path])
-    code = registry.run("hello.sh")
+    result = registry.run("hello.sh")
 
-    out, _ = capfd.readouterr()
-    assert "hi" in out
-    assert code == 3
+    assert "hi" in result.stdout
+    assert result.returncode == 3
 
 
-def test_run_passes_arguments(tmp_path, capfd):
+def test_run_passes_arguments(tmp_path):
     _write_script(tmp_path, "echo_arg.sh", '#!/bin/sh\necho "arg=$1"\n')
 
     registry = ScriptRegistry([tmp_path])
-    registry.run("echo_arg.sh", ["hello"])
+    result = registry.run("echo_arg.sh", ["hello"])
 
-    out, _ = capfd.readouterr()
-    assert "arg=hello" in out
+    assert "arg=hello" in result.stdout
+
+
+def test_run_captures_stderr_separately(tmp_path):
+    _write_script(tmp_path, "err.sh", "#!/bin/sh\necho oops 1>&2\n")
+
+    registry = ScriptRegistry([tmp_path])
+    result = registry.run("err.sh")
+
+    assert "oops" in result.stderr
+    assert result.stdout == ""
 
 
 def test_run_unregistered_script_raises(tmp_path):

@@ -31,6 +31,8 @@ The screen has three parts:
 ```
 
 Exit by typing `quit` or `exit` and pressing Enter, or press `Ctrl+Q`.
+Type `help` to list every available command, including any loaded
+plugins and bridged command groups.
 
 ## Existing commands work as-is
 
@@ -44,13 +46,16 @@ paths get archive D_800000
 ```
 
 Running one of these (or a `!<command>` shell escape, below, or `scripts
-run`) briefly hands the whole terminal over to it — the screen clears,
-the command's own output prints normally, then it waits for you to press
-Enter (`Press Enter to return to onedep-manager shell...`) before the
-TUI redraws. This is deliberate, not a bug: it's how the command's real
-output (colors, formatting, interactive prompts) is preserved exactly as
-it would look outside the shell, and the pause guarantees you get to
-read it even for a command that finishes instantly.
+run`) captures whatever it prints and writes it straight into the log —
+there's no separate terminal screen or flicker, and nothing to wait for.
+**Trade-off:** because there's no real terminal handed over, anything
+that needs one to work — an editor (`!vim file.txt`), an interactive
+session (`!ssh host`), or a bridged command that prompts you for
+confirmation — will not work through the shell. Colors are usually lost
+too, since most tools auto-detect that they're not writing to a real
+terminal and disable them on their own (the same way `ls | cat` looks
+different from plain `ls`); if a tool forces color anyway, the shell
+still renders it correctly.
 
 If one of these groups can't be imported in your environment (e.g. a
 missing dependency), the shell reports it in the log and starts anyway
@@ -213,16 +218,19 @@ hash_models.sh    models, hashing    md5sum every model file in the current dire
 > scripts run hash_models.sh
 ```
 
-`scripts run` runs the script the same way bridged commands do — the
-screen briefly hands over to it so its output streams live, waits for
-Enter before returning, and a non-zero exit code is reported as an error
-afterward. As with plugins,
-these directories are scanned in order (built-in, then
-`~/.onedep/shell/scripts/`), and a script that can't be executed (missing
-+x bit, etc.) reports a clean error rather than a traceback.
+`scripts run` runs the script the same way bridged commands do — its
+output is captured and written into the log, and a non-zero exit code is
+reported as an error afterward. As with plugins, these directories are
+scanned in order (built-in, then `~/.onedep/shell/scripts/`), and a
+script that can't be executed (missing +x bit, etc.) reports a clean
+error rather than a traceback.
 
 ## Known limitations (current version)
 
+- **No real interactive terminal for external commands.** `!<command>`,
+  bridged commands, and `scripts run` all capture output rather than
+  handing over a real terminal — see "Existing commands work as-is"
+  above. An editor, an SSH session, or a confirmation prompt won't work.
 - **No `cd`/`ls` between repositories yet.** Setting an entry with `entry`
   and querying files with `files find --repo <name>` works; interactively
   changing your actual working directory into `deposit`/`archive`/etc. the

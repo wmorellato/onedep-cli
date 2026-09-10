@@ -1,4 +1,3 @@
-import contextlib
 import sys
 import types
 from unittest import mock
@@ -43,8 +42,25 @@ def _app(tmp_path, cli_group_imports=None):
         plugin_dirs=[tmp_path / "plugins"],
         script_dirs=[tmp_path / "scripts"],
         cli_group_imports=cli_group_imports or [],
-        pause_for_return=lambda: None,
     )
+
+
+def _spy_on_log(app):
+    """Replace the RichLog's write() with a recording wrapper, returning
+    the list it appends to. Used to verify captured external-command
+    output reaches the log, since that's written directly to the widget
+    rather than through `app.printer`.
+    """
+    captured = []
+    log = app.query_one("#log")
+    real_write = log.write
+
+    def _record(content):
+        captured.append(content)
+        return real_write(content)
+
+    log.write = _record
+    return captured
 
 
 @pytest.mark.asyncio
@@ -114,7 +130,7 @@ async def test_files_command_dispatches_through_files_commands_mixin(tmp_path, m
 
 
 @pytest.mark.asyncio
-async def test_scripts_list_and_run(tmp_path, monkeypatch):
+async def test_scripts_list_and_run(tmp_path):
     scripts_dir = tmp_path / "scripts"
     scripts_dir.mkdir()
     script = scripts_dir / "hello.sh"
@@ -125,7 +141,7 @@ async def test_scripts_list_and_run(tmp_path, monkeypatch):
     app = _app(tmp_path)
     async with app.run_test() as pilot:
         app.printer = RecordingPrinter()
-        monkeypatch.setattr(app, "suspend", lambda: contextlib.nullcontext())
+        captured = _spy_on_log(app)
 
         input_widget = app.query_one("#cmdline")
         input_widget.value = "scripts list --tag demo"
@@ -135,14 +151,14 @@ async def test_scripts_list_and_run(tmp_path, monkeypatch):
         input_widget.value = "scripts run hello.sh"
         await pilot.press("enter")
         assert app.printer.error_calls == []
+        assert any("hi" in str(c) for c in captured)
 
 
 @pytest.mark.asyncio
-async def test_scripts_run_unregistered_reports_error(tmp_path, monkeypatch):
+async def test_scripts_run_unregistered_reports_error(tmp_path):
     app = _app(tmp_path)
     async with app.run_test() as pilot:
         app.printer = RecordingPrinter()
-        monkeypatch.setattr(app, "suspend", lambda: contextlib.nullcontext())
 
         input_widget = app.query_one("#cmdline")
         input_widget.value = "scripts run does-not-exist"
@@ -152,7 +168,33 @@ async def test_scripts_run_unregistered_reports_error(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_bridged_group_runs_via_suspend(tmp_path, monkeypatch):
+async def test_scripts_run_without_execute_permission_reports_clean_error(tmp_path):
+    scripts_dir = tmp_path / "scripts"
+    scripts_dir.mkdir()
+    script = scripts_dir / "noexec.sh"
+    script.write_text("#!/bin/sh\necho hi\n")
+    script.chmod(0o644)  # no execute bit
+    (scripts_dir / "noexec.sh.yaml").write_text("name: noexec.sh\ndescription: no-exec\ntags: []\n")
+
+    app = OneDepTuiApp(
+        config=mock.Mock(),
+        resolver=EntryPathResolver(path_info=FakePathInfo()),
+        plugin_dirs=[tmp_path / "plugins"],
+        script_dirs=[scripts_dir],
+        cli_group_imports=[],
+    )
+    async with app.run_test() as pilot:
+        app.printer = RecordingPrinter()
+
+        input_widget = app.query_one("#cmdline")
+        input_widget.value = "scripts run noexec.sh"
+        await pilot.press("enter")  # must not crash
+
+        assert any("noexec.sh" in msg for msg in app.printer.error_calls)
+
+
+@pytest.mark.asyncio
+async def test_bridged_group_output_reaches_the_log(tmp_path, monkeypatch):
     fake_module = types.ModuleType("onedep_manager_test_fake_ok_group")
 
     @click.group(name="fakegroup")
@@ -169,17 +211,14 @@ async def test_bridged_group_runs_via_suspend(tmp_path, monkeypatch):
     app = _app(tmp_path, cli_group_imports=[("fakegroup", "onedep_manager_test_fake_ok_group", "fakegroup")])
     async with app.run_test() as pilot:
         app.printer = RecordingPrinter()
-        monkeypatch.setattr(app, "suspend", lambda: contextlib.nullcontext())
+        captured = _spy_on_log(app)
 
         input_widget = app.query_one("#cmdline")
         input_widget.value = "fakegroup ping"
         await pilot.press("enter")
 
-        # invoke_click_group's own output goes to real stdout (that's the
-        # point of suspend()), so there's nothing to assert on app.printer
-        # for the command's own output -- just confirm dispatch didn't
-        # error and didn't crash the app.
         assert app.printer.error_calls == []
+        assert any("pong" in str(c) for c in captured)
 
 
 @pytest.mark.asyncio
@@ -203,37 +242,29 @@ async def test_unknown_command_reports_error(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_shell_delegation_runs_via_suspend(tmp_path, monkeypatch):
+async def test_shell_delegation_captures_output_into_the_log(tmp_path):
     app = _app(tmp_path)
     async with app.run_test() as pilot:
-        monkeypatch.setattr(app, "suspend", lambda: contextlib.nullcontext())
-        calls = []
-        monkeypatch.setattr("onedep_manager.shell.tui.app.subprocess.run", lambda cmd, shell: calls.append(cmd))
+        captured = _spy_on_log(app)
 
         input_widget = app.query_one("#cmdline")
         input_widget.value = "!echo hi"
         await pilot.press("enter")
 
-        assert calls == ["echo hi"]
+        assert any("hi" in str(c) for c in captured)
 
 
 @pytest.mark.asyncio
-async def test_suspend_not_supported_reports_clean_error(tmp_path, monkeypatch):
-    from textual.app import SuspendNotSupported
-
-    def _raise():
-        raise SuspendNotSupported("nope")
-
+async def test_shell_delegation_reports_nonzero_exit_code(tmp_path):
     app = _app(tmp_path)
     async with app.run_test() as pilot:
         app.printer = RecordingPrinter()
-        monkeypatch.setattr(app, "suspend", _raise)
 
         input_widget = app.query_one("#cmdline")
-        input_widget.value = "!echo hi"
-        await pilot.press("enter")  # must not raise
+        input_widget.value = "!false"
+        await pilot.press("enter")
 
-        assert any("echo hi" in msg or "suspend" in msg.lower() for msg in app.printer.error_calls)
+        assert any("exited with code" in msg for msg in app.printer.error_calls)
 
 
 @pytest.mark.asyncio
@@ -245,40 +276,6 @@ async def test_quit_exits_the_app(tmp_path):
         await pilot.press("enter")
 
         assert not app.is_running
-
-
-@pytest.mark.asyncio
-async def test_scripts_run_without_execute_permission_reports_clean_error(tmp_path, monkeypatch):
-    scripts_dir = tmp_path / "scripts"
-    scripts_dir.mkdir()
-    script = scripts_dir / "noexec.sh"
-    script.write_text("#!/bin/sh\necho hi\n")
-    script.chmod(0o644)  # no execute bit
-    (scripts_dir / "noexec.sh.yaml").write_text("name: noexec.sh\ndescription: no-exec\ntags: []\n")
-
-    app = OneDepTuiApp(
-        config=mock.Mock(),
-        resolver=EntryPathResolver(path_info=FakePathInfo()),
-        plugin_dirs=[tmp_path / "plugins"],
-        script_dirs=[scripts_dir],
-        cli_group_imports=[],
-        pause_for_return=lambda: None,
-    )
-    async with app.run_test() as pilot:
-        app.printer = RecordingPrinter()
-        # Mock suspend to a real no-op context manager (not just letting
-        # SuspendNotSupported fire) so this test actually reaches the
-        # PermissionError-inside-suspend-body path it's meant to guard --
-        # without this, the headless test harness raises
-        # SuspendNotSupported before the script ever runs, and the
-        # assertion below would pass for the wrong reason.
-        monkeypatch.setattr(app, "suspend", lambda: contextlib.nullcontext())
-
-        input_widget = app.query_one("#cmdline")
-        input_widget.value = "scripts run noexec.sh"
-        await pilot.press("enter")  # must not crash, must not leave the terminal stuck suspended
-
-        assert any("noexec.sh" in msg for msg in app.printer.error_calls)
 
 
 @pytest.mark.asyncio
@@ -317,6 +314,7 @@ async def test_bridged_group_raising_non_click_exception_reports_clean_error(tmp
 
     @brokengroup.command(name="boom")
     def boom():
+        print("partial output before the crash")
         raise RuntimeError("plugin exploded")
 
     fake_module.brokengroup = brokengroup
@@ -325,31 +323,15 @@ async def test_bridged_group_raising_non_click_exception_reports_clean_error(tmp
     app = _app(tmp_path, cli_group_imports=[("brokengroup", "onedep_manager_test_fake_broken_group", "brokengroup")])
     async with app.run_test() as pilot:
         app.printer = RecordingPrinter()
-        monkeypatch.setattr(app, "suspend", lambda: contextlib.nullcontext())
+        captured = _spy_on_log(app)
 
         input_widget = app.query_one("#cmdline")
         input_widget.value = "brokengroup boom"
         await pilot.press("enter")  # must not crash the app
 
         assert any("plugin exploded" in msg for msg in app.printer.error_calls)
-
-
-@pytest.mark.asyncio
-async def test_suspend_body_failure_still_reports_error_not_crash(tmp_path, monkeypatch):
-    app = _app(tmp_path)
-    async with app.run_test() as pilot:
-        app.printer = RecordingPrinter()
-        monkeypatch.setattr(app, "suspend", lambda: contextlib.nullcontext())
-
-        input_widget = app.query_one("#cmdline")
-        input_widget.value = "!false"  # subprocess.run succeeds fine; this specifically checks _run_suspended's own body-exception path
-        await pilot.press("enter")
-
-        # `false` exits nonzero but subprocess.run itself doesn't raise -- this
-        # just confirms the whole path still runs cleanly end to end after the
-        # restructuring. The PermissionError-from-suspend-body case is already
-        # covered by test_scripts_run_without_execute_permission_reports_clean_error.
-        assert app.printer.error_calls == []
+        # output printed before the crash must not be lost
+        assert any("partial output before the crash" in str(c) for c in captured)
 
 
 @pytest.mark.asyncio
@@ -373,17 +355,9 @@ async def test_plugin_print_output_reaches_the_log(tmp_path):
         plugin_dirs=[plugins_dir],
         script_dirs=[tmp_path / "scripts"],
         cli_group_imports=[],
-        pause_for_return=lambda: None,
     )
     async with app.run_test() as pilot:
-        captured = []
-        real_write = app.query_one("#log").write
-
-        def _record(content):
-            captured.append(content)
-            return real_write(content)
-
-        app.query_one("#log").write = _record
+        captured = _spy_on_log(app)
 
         input_widget = app.query_one("#cmdline")
         input_widget.value = "files say-hi"
@@ -394,86 +368,78 @@ async def test_plugin_print_output_reaches_the_log(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_pause_for_return_is_called_after_shell_delegation(tmp_path, monkeypatch):
-    pause_calls = []
-    app = OneDepTuiApp(
-        config=mock.Mock(),
-        resolver=EntryPathResolver(path_info=FakePathInfo()),
-        plugin_dirs=[tmp_path / "plugins"],
-        script_dirs=[tmp_path / "scripts"],
-        cli_group_imports=[],
-        pause_for_return=lambda: pause_calls.append(True),
-    )
+async def test_help_lists_builtin_commands(tmp_path):
+    app = _app(tmp_path)
     async with app.run_test() as pilot:
-        monkeypatch.setattr(app, "suspend", lambda: contextlib.nullcontext())
+        app.printer = RecordingPrinter()
 
         input_widget = app.query_one("#cmdline")
-        input_widget.value = "!true"
+        input_widget.value = "help"
         await pilot.press("enter")
 
-        assert pause_calls == [True]
+        assert len(app.printer.table_calls) == 1
+        header, rows = app.printer.table_calls[0]
+        assert header == ["Command", "Description"]
+        commands = [row[0] for row in rows]
+        assert any(c.startswith("entry") for c in commands)
+        assert any(c.startswith("files") for c in commands)
+        assert any(c.startswith("scripts") for c in commands)
+        assert any(c.startswith("!") for c in commands)
+        assert any("quit" in c for c in commands)
+        assert any(c == "help" for c in commands)
 
 
 @pytest.mark.asyncio
-async def test_pause_for_return_is_called_after_script_run(tmp_path, monkeypatch):
-    scripts_dir = tmp_path / "scripts"
-    scripts_dir.mkdir()
-    script = scripts_dir / "hello.sh"
-    script.write_text("#!/bin/sh\necho hi\n")
-    script.chmod(0o755)
-    (scripts_dir / "hello.sh.yaml").write_text("name: hello.sh\ndescription: greets\ntags: []\n")
-
-    pause_calls = []
-    app = OneDepTuiApp(
-        config=mock.Mock(),
-        resolver=EntryPathResolver(path_info=FakePathInfo()),
-        plugin_dirs=[tmp_path / "plugins"],
-        script_dirs=[scripts_dir],
-        cli_group_imports=[],
-        pause_for_return=lambda: pause_calls.append(True),
+async def test_help_lists_loaded_plugins(tmp_path):
+    plugins_dir = tmp_path / "plugins"
+    plugins_dir.mkdir()
+    (plugins_dir / "demo_plugin.py").write_text(
+        "from onedep_manager.shell.plugin_loader import FilePlugin\n"
+        "\n"
+        "class DemoPlugin(FilePlugin):\n"
+        "    name = 'demo'\n"
+        "    help = 'a demo plugin'\n"
+        "\n"
+        "    def run(self, files, **kwargs):\n"
+        "        pass\n"
     )
-    async with app.run_test() as pilot:
-        monkeypatch.setattr(app, "suspend", lambda: contextlib.nullcontext())
 
-        input_widget = app.query_one("#cmdline")
-        input_widget.value = "scripts run hello.sh"
-        await pilot.press("enter")
-
-        assert pause_calls == [True]
-
-
-@pytest.mark.asyncio
-async def test_pause_for_return_not_called_when_suspend_is_unsupported(tmp_path, monkeypatch):
-    pause_calls = []
     app = OneDepTuiApp(
         config=mock.Mock(),
         resolver=EntryPathResolver(path_info=FakePathInfo()),
-        plugin_dirs=[tmp_path / "plugins"],
+        plugin_dirs=[plugins_dir],
         script_dirs=[tmp_path / "scripts"],
         cli_group_imports=[],
-        pause_for_return=lambda: pause_calls.append(True),
     )
     async with app.run_test() as pilot:
         app.printer = RecordingPrinter()
-        # Default headless-test suspend() raises SuspendNotSupported before
-        # the body (and therefore the pause) ever runs.
+
         input_widget = app.query_one("#cmdline")
-        input_widget.value = "!true"
+        input_widget.value = "help"
         await pilot.press("enter")
 
-        assert pause_calls == []
-        assert any("suspend" in msg.lower() for msg in app.printer.error_calls)
+        _, rows = app.printer.table_calls[0]
+        assert any("demo" in row[1] for row in rows)
 
 
-def test_pause_for_return_defaults_to_the_real_implementation(tmp_path):
-    from onedep_manager.shell.tui.app import _default_pause_for_return
+@pytest.mark.asyncio
+async def test_help_lists_bridged_commands(tmp_path, monkeypatch):
+    fake_module = types.ModuleType("onedep_manager_test_fake_help_group")
 
-    app = OneDepTuiApp(
-        config=mock.Mock(),
-        resolver=EntryPathResolver(path_info=FakePathInfo()),
-        plugin_dirs=[tmp_path / "plugins"],
-        script_dirs=[tmp_path / "scripts"],
-        cli_group_imports=[],
-    )
+    @click.group(name="fakegroup")
+    def fakegroup():
+        pass
 
-    assert app._pause_for_return is _default_pause_for_return
+    fake_module.fakegroup = fakegroup
+    monkeypatch.setitem(sys.modules, "onedep_manager_test_fake_help_group", fake_module)
+
+    app = _app(tmp_path, cli_group_imports=[("fakegroup", "onedep_manager_test_fake_help_group", "fakegroup")])
+    async with app.run_test() as pilot:
+        app.printer = RecordingPrinter()
+
+        input_widget = app.query_one("#cmdline")
+        input_widget.value = "help"
+        await pilot.press("enter")
+
+        _, rows = app.printer.table_calls[0]
+        assert any("fakegroup" in row[1] for row in rows)

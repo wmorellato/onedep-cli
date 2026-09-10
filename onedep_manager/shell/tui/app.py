@@ -1,11 +1,14 @@
+import contextlib
 import importlib
+import io
 import shlex
 import subprocess
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import click
-from textual.app import App, ComposeResult, SuspendNotSupported
+from rich.text import Text
+from textual.app import App, ComposeResult
 from textual.containers import Vertical
 from textual.widgets import RichLog
 
@@ -33,21 +36,6 @@ DEFAULT_CLI_GROUP_IMPORTS: List[Tuple[str, str, str]] = [
 _SHELL_PACKAGE_DIR = Path(__file__).parent.parent
 DEFAULT_PLUGIN_DIRS = [_SHELL_PACKAGE_DIR / "plugins", Path.home() / ".onedep" / "shell" / "plugins"]
 DEFAULT_SCRIPT_DIRS = [_SHELL_PACKAGE_DIR / "scripts", Path.home() / ".onedep" / "shell" / "scripts"]
-
-
-def _default_pause_for_return() -> None:
-    """Block for a keypress before the TUI resumes from a suspended command.
-
-    Without this, a fast command's output (e.g. `ls`) can be erased by the
-    TUI's redraw before there's any chance to read it -- the suspend/resume
-    round-trip can be faster than a human can perceive. `input()` here reads
-    from the real terminal, which is what `self.suspend()` hands control
-    back to.
-    """
-    try:
-        input("\nPress Enter to return to onedep-manager shell...")
-    except EOFError:
-        pass
 
 
 class OneDepTuiApp(FilesCommands, App):
@@ -79,7 +67,6 @@ class OneDepTuiApp(FilesCommands, App):
         plugin_dirs: Optional[List[Path]] = None,
         script_dirs: Optional[List[Path]] = None,
         cli_group_imports: Optional[List[Tuple[str, str, str]]] = None,
-        pause_for_return: Optional[Callable[[], None]] = None,
     ):
         super().__init__()
 
@@ -91,7 +78,6 @@ class OneDepTuiApp(FilesCommands, App):
         self._cli_group_imports = cli_group_imports if cli_group_imports is not None else DEFAULT_CLI_GROUP_IMPORTS
         self._bridged_groups: Dict[str, click.Group] = {}
         self._ctx_obj = CLIContext(config=self.config)
-        self._pause_for_return = pause_for_return or _default_pause_for_return
         self.printer = None  # set in on_mount, once the RichLog exists
 
     def compose(self) -> ComposeResult:
@@ -136,7 +122,7 @@ class OneDepTuiApp(FilesCommands, App):
 
         try:
             if stripped.startswith("!"):
-                self._run_suspended(f"!{stripped[1:]}", lambda: subprocess.run(stripped[1:], shell=True))
+                self._run_shell_command(stripped[1:])
                 self._refresh_panels()
                 return
 
@@ -149,12 +135,13 @@ class OneDepTuiApp(FilesCommands, App):
                 self.dispatch(rest)
             elif action == "scripts":
                 self._do_scripts(rest)
+            elif action == "help":
+                self._do_help()
             elif action in ("quit", "exit"):
                 self.exit()
                 return
             elif action in self._bridged_groups:
-                group = self._bridged_groups[action]
-                self._run_suspended(stripped, lambda: invoke_click_group(group, rest, ctx_obj=self._ctx_obj))
+                self._run_bridged_command(stripped, self._bridged_groups[action], rest)
             else:
                 self.printer.error(f"Unknown command '{action}'")
         except Exception as exc:
@@ -162,33 +149,44 @@ class OneDepTuiApp(FilesCommands, App):
 
         self._refresh_panels()
 
-    def _run_suspended(self, label: str, action) -> None:
-        """Run `action` with the TUI suspended, reporting any failure cleanly.
+    def _write_captured_output(self, stdout_text: str, stderr_text: str) -> None:
+        log = self.query_one("#log", RichLog)
+        if stdout_text:
+            log.write(Text.from_ansi(stdout_text))
+        if stderr_text:
+            log.write(Text.from_ansi(stderr_text, style="red"))
 
-        Catches everything `action` can raise *inside* the `with
-        self.suspend():` block and never lets it escape that block --
-        Textual's suspend() has no try/finally around resuming the
-        terminal, so an exception escaping it leaves the terminal stuck
-        in suspended state (verified during the final review: a script
-        without its execute bit left the terminal permanently suspended
-        before this fix). Also pauses for a keypress before resuming, so a
-        fast command's output isn't erased by the redraw before it can be
-        read.
+    def _run_shell_command(self, cmd: str) -> None:
+        """Run `cmd` in a real subprocess and write its output into the log.
+
+        Output is captured rather than handing the terminal over to the
+        subprocess: the TUI is actively rendering its own screen, and a
+        subprocess writing directly to the real terminal while that's
+        happening would corrupt the display. The trade-off: a command that
+        needs a real interactive terminal (an editor, an SSH session) will
+        not work through this -- there's no TTY for it to talk to.
         """
-        failure = None
-        try:
-            with self.suspend():
-                try:
-                    action()
-                except BaseException as exc:  # noqa: BLE001 -- must never escape suspend()
-                    failure = exc
-                self._pause_for_return()
-        except SuspendNotSupported:
-            self.printer.error(f"Cannot run '{label}' here: suspending the TUI isn't supported in this environment")
-            return
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        self._write_captured_output(result.stdout, result.stderr)
+        if result.returncode != 0:
+            self.printer.error(f"'!{cmd}' exited with code {result.returncode}")
 
-        if failure is not None:
-            self.printer.error(f"'{label}' failed: {failure}")
+    def _run_bridged_command(self, label: str, group: click.Group, args: List[str]) -> None:
+        """Run a bridged Click group, capturing its stdout/stderr into the log.
+
+        Uses contextlib.redirect_stdout/stderr rather than a real terminal
+        handoff, for the same reason as `_run_shell_command`. Whatever was
+        captured before a failure is still written (the `finally`), so a
+        command that partially printed something before raising doesn't
+        lose that output.
+        """
+        stdout_buf = io.StringIO()
+        stderr_buf = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(stdout_buf), contextlib.redirect_stderr(stderr_buf):
+                invoke_click_group(group, args, ctx_obj=self._ctx_obj)
+        finally:
+            self._write_captured_output(stdout_buf.getvalue(), stderr_buf.getvalue())
 
     def _do_entry(self, args: List[str]) -> None:
         if not args:
@@ -229,47 +227,34 @@ class OneDepTuiApp(FilesCommands, App):
                 self.printer.error("Usage: scripts run <name> [args...]")
                 return
             try:
-                code = self._run_script(rest[0], rest[1:])
+                result = self.scripts.run(rest[0], rest[1:])
             except ScriptNotFoundError as exc:
                 self.printer.error(str(exc))
                 return
             except (OSError, PermissionError) as exc:
                 self.printer.error(f"scripts run {rest[0]}: {exc}")
                 return
-            if code is not None and code != 0:
-                self.printer.error(f"Script exited with code {code}")
+            self._write_captured_output(result.stdout, result.stderr)
+            if result.returncode != 0:
+                self.printer.error(f"Script exited with code {result.returncode}")
             return
 
         self.printer.error(f"Unknown scripts action '{action}'")
 
-    def _run_script(self, name: str, args: List[str]) -> Optional[int]:
-        """Run a registered script with the TUI suspended.
+    def _do_help(self) -> None:
+        rows = [
+            ["entry [ID]", "Set or show the current entry"],
+            ["files find|list|hash|info [args...]", "Find/list/hash/info on wwPDB files"],
+            ["scripts list|run [args...]", "List or run a whitelisted script"],
+            ["!<command>", "Run <command> and show its output here"],
+            ["quit / exit", "Exit the shell (Ctrl+Q also works)"],
+            ["help", "Show this help"],
+        ]
 
-        Returns the script's exit code, or None if it couldn't run at all
-        (suspend unsupported) -- distinct from a successful run that
-        happens to exit 0. Any exception `self.scripts.run` raises
-        (ScriptNotFoundError, OSError/PermissionError, ...) is re-raised
-        here *after* the suspend block has safely exited, so it still
-        reaches _do_scripts's existing except clauses -- but the terminal
-        is never left stuck suspended getting there. Also pauses for a
-        keypress before resuming, so the script's output isn't erased by
-        the redraw before it can be read.
-        """
-        result = {}
-        failure = None
+        if self.plugins:
+            rows.append(["files <plugin> [args...]", "Loaded plugins: " + ", ".join(sorted(self.plugins))])
 
-        try:
-            with self.suspend():
-                try:
-                    result["code"] = self.scripts.run(name, args)
-                except BaseException as exc:  # noqa: BLE001 -- must never escape suspend()
-                    failure = exc
-                self._pause_for_return()
-        except SuspendNotSupported:
-            self.printer.error(f"Cannot run script '{name}' here: suspending the TUI isn't supported in this environment")
-            return None
+        if self._bridged_groups:
+            rows.append(["<bridged command>", "Available: " + ", ".join(sorted(self._bridged_groups))])
 
-        if failure is not None:
-            raise failure
-
-        return result.get("code")
+        self.printer.table(["Command", "Description"], rows)
