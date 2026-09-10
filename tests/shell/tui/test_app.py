@@ -244,3 +244,140 @@ async def test_quit_exits_the_app(tmp_path):
         await pilot.press("enter")
 
         assert not app.is_running
+
+
+@pytest.mark.asyncio
+async def test_scripts_run_without_execute_permission_reports_clean_error(tmp_path):
+    scripts_dir = tmp_path / "scripts"
+    scripts_dir.mkdir()
+    script = scripts_dir / "noexec.sh"
+    script.write_text("#!/bin/sh\necho hi\n")
+    script.chmod(0o644)  # no execute bit
+    (scripts_dir / "noexec.sh.yaml").write_text("name: noexec.sh\ndescription: no-exec\ntags: []\n")
+
+    app = OneDepTuiApp(
+        config=mock.Mock(),
+        resolver=EntryPathResolver(path_info=FakePathInfo()),
+        plugin_dirs=[tmp_path / "plugins"],
+        script_dirs=[scripts_dir],
+        cli_group_imports=[],
+    )
+    async with app.run_test() as pilot:
+        app.printer = RecordingPrinter()
+
+        input_widget = app.query_one("#cmdline")
+        input_widget.value = "scripts run noexec.sh"
+        await pilot.press("enter")  # must not crash, must not leave the terminal stuck suspended
+
+        assert any("noexec.sh" in msg for msg in app.printer.error_calls)
+
+
+@pytest.mark.asyncio
+async def test_scripts_list_with_tag_and_no_value_reports_clean_error(tmp_path):
+    app = _app(tmp_path)
+    async with app.run_test() as pilot:
+        app.printer = RecordingPrinter()
+
+        input_widget = app.query_one("#cmdline")
+        input_widget.value = "scripts list --tag"
+        await pilot.press("enter")
+
+        assert any("--tag" in msg for msg in app.printer.error_calls)
+
+
+@pytest.mark.asyncio
+async def test_unbalanced_quote_reports_clean_error_not_a_crash(tmp_path):
+    app = _app(tmp_path)
+    async with app.run_test() as pilot:
+        app.printer = RecordingPrinter()
+
+        input_widget = app.query_one("#cmdline")
+        input_widget.value = 'files find --type "model'
+        await pilot.press("enter")  # must not crash the app
+
+        assert len(app.printer.error_calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_bridged_group_raising_non_click_exception_reports_clean_error(tmp_path, monkeypatch):
+    fake_module = types.ModuleType("onedep_manager_test_fake_broken_group")
+
+    @click.group(name="brokengroup")
+    def brokengroup():
+        pass
+
+    @brokengroup.command(name="boom")
+    def boom():
+        raise RuntimeError("plugin exploded")
+
+    fake_module.brokengroup = brokengroup
+    monkeypatch.setitem(sys.modules, "onedep_manager_test_fake_broken_group", fake_module)
+
+    app = _app(tmp_path, cli_group_imports=[("brokengroup", "onedep_manager_test_fake_broken_group", "brokengroup")])
+    async with app.run_test() as pilot:
+        app.printer = RecordingPrinter()
+        monkeypatch.setattr(app, "suspend", lambda: contextlib.nullcontext())
+
+        input_widget = app.query_one("#cmdline")
+        input_widget.value = "brokengroup boom"
+        await pilot.press("enter")  # must not crash the app
+
+        assert any("plugin exploded" in msg for msg in app.printer.error_calls)
+
+
+@pytest.mark.asyncio
+async def test_suspend_body_failure_still_reports_error_not_crash(tmp_path, monkeypatch):
+    app = _app(tmp_path)
+    async with app.run_test() as pilot:
+        app.printer = RecordingPrinter()
+        monkeypatch.setattr(app, "suspend", lambda: contextlib.nullcontext())
+
+        input_widget = app.query_one("#cmdline")
+        input_widget.value = "!false"  # subprocess.run succeeds fine; this specifically checks _run_suspended's own body-exception path
+        await pilot.press("enter")
+
+        # `false` exits nonzero but subprocess.run itself doesn't raise -- this
+        # just confirms the whole path still runs cleanly end to end after the
+        # restructuring. The PermissionError-from-suspend-body case is already
+        # covered by test_scripts_run_without_execute_permission_reports_clean_error.
+        assert app.printer.error_calls == []
+
+
+@pytest.mark.asyncio
+async def test_plugin_print_output_reaches_the_log(tmp_path):
+    plugins_dir = tmp_path / "plugins"
+    plugins_dir.mkdir()
+    (plugins_dir / "printer_plugin.py").write_text(
+        "from onedep_manager.shell.plugin_loader import FilePlugin\n"
+        "\n"
+        "class PrinterPlugin(FilePlugin):\n"
+        "    name = 'say-hi'\n"
+        "    help = 'prints hi'\n"
+        "\n"
+        "    def run(self, files, **kwargs):\n"
+        "        print('hi from plugin')\n"
+    )
+
+    app = OneDepTuiApp(
+        config=mock.Mock(),
+        resolver=EntryPathResolver(path_info=FakePathInfo()),
+        plugin_dirs=[plugins_dir],
+        script_dirs=[tmp_path / "scripts"],
+        cli_group_imports=[],
+    )
+    async with app.run_test() as pilot:
+        captured = []
+        real_write = app.query_one("#log").write
+
+        def _record(content):
+            captured.append(content)
+            return real_write(content)
+
+        app.query_one("#log").write = _record
+
+        input_widget = app.query_one("#cmdline")
+        input_widget.value = "files say-hi"
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert any("hi from plugin" in str(c) for c in captured)

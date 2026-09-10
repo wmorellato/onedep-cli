@@ -18,6 +18,7 @@ class HistoryInput(Input):
         self._history_index: Optional[int] = None
 
     def add_to_history(self, command: str) -> None:
+        command = command.strip()
         if command and (not self._history or self._history[-1] != command):
             self._history.append(command)
         self._history_index = None

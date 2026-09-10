@@ -99,7 +99,7 @@ def _shared_parser(allow_select: bool) -> argparse.ArgumentParser:
 class FilesCommands:
     """File find/list/action commands.
 
-    Composed into onedep_manager.shell.app.OneDepShell. Requires the host
+    Composed into onedep_manager.shell.tui.app.OneDepTuiApp. Requires the host
     object to provide `context`, `resolver`, `plugins`, and `printer`
     attributes (see the class-level type hints below).
     """

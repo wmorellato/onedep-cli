@@ -2,7 +2,8 @@
 
 An interactive shell for navigating entries, inspecting files, running
 whitelisted scripts, and extending file actions with drop-in plugins —
-without leaving a single session. Built on [`cmd2`](https://cmd2.readthedocs.io/).
+without leaving a single session. Built on
+[Textual](https://textual.textualize.io/).
 
 ## Launching
 
@@ -11,13 +12,24 @@ poetry run onedep-manager shell
 poetry run onedep-manager shell --site WWPDB_DEPLOY_TEST_RU   # -i works too
 ```
 
-The prompt shows the current entry and selection size:
+The screen has three parts:
+- a **header panel** at the top, always visible, showing the current
+  entry and file selection (filenames, truncated with `... N more` past
+  10)
+- a **scrolling log** in the middle, where command output appears
+- a **command line** at the bottom, where you type
 
 ```
-(-) [0 files] onedep>
+┌ Entry: D_800000 ──────────────────────────────────┐
+│ Selection: D_800000_model_P1.cif.V1, ... 3 more    │
+└─────────────────────────────────────────────────────┘
+ (command output scrolls here)
+
+
+ command...
 ```
 
-Exit with `quit`, `exit`, or Ctrl-D (all provided by `cmd2`).
+Exit by typing `quit` or `exit` and pressing Enter, or press `Ctrl+Q`.
 
 ## Existing commands work as-is
 
@@ -26,21 +38,33 @@ same command groups available from `onedep-manager <group> ...` — are all
 usable directly inside the shell:
 
 ```
-(-) [0 files] onedep> services status
-(-) [0 files] onedep> paths get archive D_800000
+services status
+paths get archive D_800000
 ```
+
+Running one of these (or a `!<command>` shell escape, below) briefly
+hands the whole terminal over to it — the screen clears, the command's
+own output prints normally, then the TUI redraws once it finishes. This
+flicker is deliberate, not a bug: it's how the command's real output
+(colors, formatting, interactive prompts) is preserved exactly as it
+would look outside the shell.
 
 If one of these groups can't be imported in your environment (e.g. a
-missing dependency), the shell prints a warning and starts anyway with the
-other groups available — one broken group never blocks the rest.
+missing dependency), the shell reports it in the log and starts anyway
+with the other groups available — one broken group never blocks the rest.
 
-Anything the shell doesn't recognize falls through to your real shell,
-same as typing `!<command>` in any `cmd2` app:
+Anything the shell doesn't recognize as a command or a bridged group name
+is reported as an unknown command — it does not fall through to a real
+shell. For that, use `!`:
 
 ```
-(-) [0 files] onedep> !ls -la
-(-) [0 files] onedep> !git status
+!ls -la
+!git status
 ```
+
+## Command history
+
+Press Up/Down to recall previously entered commands.
 
 ## Entry navigation
 
@@ -50,13 +74,12 @@ entry               # show the current entry (or "No entry set")
 ```
 
 Setting a new entry clears the current file selection. The shell resolves
-the entry's archive path immediately and warns (without refusing to set
-it) if that path doesn't exist yet:
+the entry's archive path immediately and reports it in the log (without
+refusing to set the entry) if that path doesn't exist yet:
 
 ```
-(-) [0 files] onedep> entry D_9999999
-Warning: Entry 'D_9999999' resolved to '/data/archive/D_9999999', which does not exist
-(D_9999999) [0 files] onedep>
+> entry D_9999999
+Entry 'D_9999999' resolved to '/data/archive/D_9999999', which does not exist
 ```
 
 ## Finding and acting on files
@@ -72,7 +95,7 @@ files info
 `files find` lists matching files as a table — permissions, owner, size,
 mtime, md5, and path, `ls -l`-style — without touching your current
 selection, unless you pass `-s`/`--select`, which stores the matches as
-the selection for later commands to reuse.
+the selection for later commands to reuse (and updates the header panel).
 
 **Where it looks:** with an entry — either `--entry ID` or one already set
 via `entry` — it resolves that entry's repository directory (`archive` by
@@ -91,15 +114,15 @@ find`/`list`/`hash`/`info` show whatever's currently selected instead.
   version per (dataset, type, part, format) group
 
 ```
-(D_800000) [0 files] onedep> files find --type model
+> files find --type model
 ┏━━━━━━━━━━━━━┳━━━━━━━┳━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ permissions ┃ owner ┃ size ┃ mtime             ┃ md5                            ┃ path                         ┃
 ┡━━━━━━━━━━━━━╇━━━━━━━╇━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
 │ -rw-r--r--  │ user  │ 1234 │ 2026-09-09 10:00  │ 5d41402abc4b2a76b9719d911017c…│ .../D_800000_model_P1.cif.V1 │
 └─────────────┴───────┴──────┴───────────────────┴────────────────────────────────┴──────────────────────────────┘
 
-(D_800000) [0 files] onedep> files find --type model -s
-(D_800000) [1 files] onedep> files hash
+> files find --type model -s
+> files hash
 ```
 
 `hash`/`info`/`list` accept the same filter flags for a one-shot query
@@ -135,11 +158,12 @@ class CopyToPlugin(FilePlugin):
 ```
 
 ```
-(D_800000) [1 files] onedep> files copy-to --dest /tmp/out
+> files copy-to --dest /tmp/out
 ```
 
-Trailing `--key value` / `--flag` tokens after the plugin name are parsed
-into keyword arguments (`--dest /tmp` → `dest="/tmp"`, `--verbose` →
+A plugin's `print()` output appears in the log, same as any other command's
+output. Trailing `--key value` / `--flag` tokens after the plugin name are
+parsed into keyword arguments (`--dest /tmp` → `dest="/tmp"`, `--verbose` →
 `verbose=True`) and passed to `run(files, **kwargs)` alongside the current
 selection. A plugin that raises reports a clean error instead of crashing
 the shell. Running `files` with no arguments lists usage and, if any
@@ -181,13 +205,14 @@ tags: [models, hashing]
 ```
 
 ```
-(-) [0 files] onedep> scripts list --tag models
+> scripts list --tag models
 hash_models.sh    models, hashing    md5sum every model file in the current directory
-(-) [0 files] onedep> scripts run hash_models.sh
+> scripts run hash_models.sh
 ```
 
-`scripts run` executes the script as a real subprocess — output streams
-live, and a non-zero exit code is reported as an error. As with plugins,
+`scripts run` runs the script the same way bridged commands do — the
+screen briefly hands over to it so its output streams live — and a
+non-zero exit code is reported as an error afterward. As with plugins,
 these directories are scanned in order (built-in, then
 `~/.onedep/shell/scripts/`), and a script that can't be executed (missing
 +x bit, etc.) reports a clean error rather than a traceback.
@@ -199,11 +224,14 @@ these directories are scanned in order (built-in, then
   changing your actual working directory into `deposit`/`archive`/etc. the
   way the bash functions from `onedep-manager paths generate-funcs` do is
   not implemented. Those bash functions are still the way to do that today.
+- **No tab-completion.** This is an accepted trade-off of moving off
+  `cmd2`/readline, not a bug — command entry is plain typing plus Up/Down
+  history recall.
 - `files hash`/`files info` currently render the same full table as
   `files list`/`files find` — there's no narrower, action-specific column
   set yet.
 - Every `files` listing computes an md5 for every matched file, even for
   `files info`. On a directory of large files this can be slow; there's no
   way to list without paying that cost yet.
-- `entry <id>` only warns (via `pwarning`) if the resolved archive path
-  doesn't exist — it never refuses to set the entry.
+- `entry <id>` only reports a problem in the log if the resolved archive
+  path doesn't exist — it never refuses to set the entry.

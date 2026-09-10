@@ -1,5 +1,4 @@
 import importlib
-import logging
 import shlex
 import subprocess
 from pathlib import Path
@@ -21,8 +20,6 @@ from onedep_manager.shell.scripts import ScriptNotFoundError, ScriptRegistry
 from onedep_manager.shell.tui.input import HistoryInput
 from onedep_manager.shell.tui.panels import EntrySelectionPanel, Panel
 from onedep_manager.shell.tui.printer import TextualPrinter
-
-logger = logging.getLogger(__name__)
 
 DEFAULT_CLI_GROUP_IMPORTS: List[Tuple[str, str, str]] = [
     ("services", "onedep_manager.cli.services", "services_group"),
@@ -87,9 +84,13 @@ class OneDepTuiApp(FilesCommands, App):
 
     def on_mount(self) -> None:
         self.printer = TextualPrinter(self.query_one("#log", RichLog))
+        self.begin_capture_print(self)
         self._resolve_cli_groups()
         self._refresh_panels()
         self.query_one("#cmdline", HistoryInput).focus()
+
+    def on_print(self, event) -> None:
+        self.query_one("#log", RichLog).write(event.text)
 
     def _resolve_cli_groups(self) -> None:
         for name, module_path, attr in self._cli_group_imports:
@@ -115,37 +116,58 @@ class OneDepTuiApp(FilesCommands, App):
         if not stripped:
             return
 
-        if stripped.startswith("!"):
-            self._run_suspended(f"! {stripped}", lambda: subprocess.run(stripped[1:], shell=True))
-            self._refresh_panels()
-            return
+        try:
+            if stripped.startswith("!"):
+                self._run_suspended(f"!{stripped[1:]}", lambda: subprocess.run(stripped[1:], shell=True))
+                self._refresh_panels()
+                return
 
-        args = shlex.split(stripped)
-        action, rest = args[0], args[1:]
+            args = shlex.split(stripped)
+            action, rest = args[0], args[1:]
 
-        if action == "entry":
-            self._do_entry(rest)
-        elif action == "files":
-            self.dispatch(rest)
-        elif action == "scripts":
-            self._do_scripts(rest)
-        elif action in ("quit", "exit"):
-            self.exit()
-            return
-        elif action in self._bridged_groups:
-            group = self._bridged_groups[action]
-            self._run_suspended(stripped, lambda: invoke_click_group(group, rest, ctx_obj=self._ctx_obj))
-        else:
-            self.printer.error(f"Unknown command '{action}'")
+            if action == "entry":
+                self._do_entry(rest)
+            elif action == "files":
+                self.dispatch(rest)
+            elif action == "scripts":
+                self._do_scripts(rest)
+            elif action in ("quit", "exit"):
+                self.exit()
+                return
+            elif action in self._bridged_groups:
+                group = self._bridged_groups[action]
+                self._run_suspended(stripped, lambda: invoke_click_group(group, rest, ctx_obj=self._ctx_obj))
+            else:
+                self.printer.error(f"Unknown command '{action}'")
+        except Exception as exc:
+            self.printer.error(f"Error running '{stripped}': {exc}")
 
         self._refresh_panels()
 
     def _run_suspended(self, label: str, action) -> None:
+        """Run `action` with the TUI suspended, reporting any failure cleanly.
+
+        Catches everything `action` can raise *inside* the `with
+        self.suspend():` block and never lets it escape that block --
+        Textual's suspend() has no try/finally around resuming the
+        terminal, so an exception escaping it leaves the terminal stuck
+        in suspended state (verified during the final review: a script
+        without its execute bit left the terminal permanently suspended
+        before this fix).
+        """
+        failure = None
         try:
             with self.suspend():
-                action()
+                try:
+                    action()
+                except BaseException as exc:  # noqa: BLE001 -- must never escape suspend()
+                    failure = exc
         except SuspendNotSupported:
             self.printer.error(f"Cannot run '{label}' here: suspending the TUI isn't supported in this environment")
+            return
+
+        if failure is not None:
+            self.printer.error(f"'{label}' failed: {failure}")
 
     def _do_entry(self, args: List[str]) -> None:
         if not args:
@@ -193,22 +215,37 @@ class OneDepTuiApp(FilesCommands, App):
             except (OSError, PermissionError) as exc:
                 self.printer.error(f"scripts run {rest[0]}: {exc}")
                 return
-            if code != 0:
+            if code is not None and code != 0:
                 self.printer.error(f"Script exited with code {code}")
             return
 
         self.printer.error(f"Unknown scripts action '{action}'")
 
-    def _run_script(self, name: str, args: List[str]) -> int:
-        result = {}
+    def _run_script(self, name: str, args: List[str]) -> Optional[int]:
+        """Run a registered script with the TUI suspended.
 
-        def _run():
-            result["code"] = self.scripts.run(name, args)
+        Returns the script's exit code, or None if it couldn't run at all
+        (suspend unsupported) -- distinct from a successful run that
+        happens to exit 0. Any exception `self.scripts.run` raises
+        (ScriptNotFoundError, OSError/PermissionError, ...) is re-raised
+        here *after* the suspend block has safely exited, so it still
+        reaches _do_scripts's existing except clauses -- but the terminal
+        is never left stuck suspended getting there.
+        """
+        result = {}
+        failure = None
 
         try:
             with self.suspend():
-                _run()
+                try:
+                    result["code"] = self.scripts.run(name, args)
+                except BaseException as exc:  # noqa: BLE001 -- must never escape suspend()
+                    failure = exc
         except SuspendNotSupported:
             self.printer.error(f"Cannot run script '{name}' here: suspending the TUI isn't supported in this environment")
-            return 0
-        return result["code"]
+            return None
+
+        if failure is not None:
+            raise failure
+
+        return result.get("code")
