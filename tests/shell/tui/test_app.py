@@ -1,7 +1,6 @@
 import contextlib
 import sys
 import types
-from pathlib import Path
 from unittest import mock
 
 import click
