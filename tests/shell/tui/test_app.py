@@ -43,6 +43,7 @@ def _app(tmp_path, cli_group_imports=None):
         plugin_dirs=[tmp_path / "plugins"],
         script_dirs=[tmp_path / "scripts"],
         cli_group_imports=cli_group_imports or [],
+        pause_for_return=lambda: None,
     )
 
 
@@ -247,7 +248,7 @@ async def test_quit_exits_the_app(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_scripts_run_without_execute_permission_reports_clean_error(tmp_path):
+async def test_scripts_run_without_execute_permission_reports_clean_error(tmp_path, monkeypatch):
     scripts_dir = tmp_path / "scripts"
     scripts_dir.mkdir()
     script = scripts_dir / "noexec.sh"
@@ -261,9 +262,17 @@ async def test_scripts_run_without_execute_permission_reports_clean_error(tmp_pa
         plugin_dirs=[tmp_path / "plugins"],
         script_dirs=[scripts_dir],
         cli_group_imports=[],
+        pause_for_return=lambda: None,
     )
     async with app.run_test() as pilot:
         app.printer = RecordingPrinter()
+        # Mock suspend to a real no-op context manager (not just letting
+        # SuspendNotSupported fire) so this test actually reaches the
+        # PermissionError-inside-suspend-body path it's meant to guard --
+        # without this, the headless test harness raises
+        # SuspendNotSupported before the script ever runs, and the
+        # assertion below would pass for the wrong reason.
+        monkeypatch.setattr(app, "suspend", lambda: contextlib.nullcontext())
 
         input_widget = app.query_one("#cmdline")
         input_widget.value = "scripts run noexec.sh"
@@ -364,6 +373,7 @@ async def test_plugin_print_output_reaches_the_log(tmp_path):
         plugin_dirs=[plugins_dir],
         script_dirs=[tmp_path / "scripts"],
         cli_group_imports=[],
+        pause_for_return=lambda: None,
     )
     async with app.run_test() as pilot:
         captured = []
@@ -381,3 +391,89 @@ async def test_plugin_print_output_reaches_the_log(tmp_path):
         await pilot.pause()
 
         assert any("hi from plugin" in str(c) for c in captured)
+
+
+@pytest.mark.asyncio
+async def test_pause_for_return_is_called_after_shell_delegation(tmp_path, monkeypatch):
+    pause_calls = []
+    app = OneDepTuiApp(
+        config=mock.Mock(),
+        resolver=EntryPathResolver(path_info=FakePathInfo()),
+        plugin_dirs=[tmp_path / "plugins"],
+        script_dirs=[tmp_path / "scripts"],
+        cli_group_imports=[],
+        pause_for_return=lambda: pause_calls.append(True),
+    )
+    async with app.run_test() as pilot:
+        monkeypatch.setattr(app, "suspend", lambda: contextlib.nullcontext())
+
+        input_widget = app.query_one("#cmdline")
+        input_widget.value = "!true"
+        await pilot.press("enter")
+
+        assert pause_calls == [True]
+
+
+@pytest.mark.asyncio
+async def test_pause_for_return_is_called_after_script_run(tmp_path, monkeypatch):
+    scripts_dir = tmp_path / "scripts"
+    scripts_dir.mkdir()
+    script = scripts_dir / "hello.sh"
+    script.write_text("#!/bin/sh\necho hi\n")
+    script.chmod(0o755)
+    (scripts_dir / "hello.sh.yaml").write_text("name: hello.sh\ndescription: greets\ntags: []\n")
+
+    pause_calls = []
+    app = OneDepTuiApp(
+        config=mock.Mock(),
+        resolver=EntryPathResolver(path_info=FakePathInfo()),
+        plugin_dirs=[tmp_path / "plugins"],
+        script_dirs=[scripts_dir],
+        cli_group_imports=[],
+        pause_for_return=lambda: pause_calls.append(True),
+    )
+    async with app.run_test() as pilot:
+        monkeypatch.setattr(app, "suspend", lambda: contextlib.nullcontext())
+
+        input_widget = app.query_one("#cmdline")
+        input_widget.value = "scripts run hello.sh"
+        await pilot.press("enter")
+
+        assert pause_calls == [True]
+
+
+@pytest.mark.asyncio
+async def test_pause_for_return_not_called_when_suspend_is_unsupported(tmp_path, monkeypatch):
+    pause_calls = []
+    app = OneDepTuiApp(
+        config=mock.Mock(),
+        resolver=EntryPathResolver(path_info=FakePathInfo()),
+        plugin_dirs=[tmp_path / "plugins"],
+        script_dirs=[tmp_path / "scripts"],
+        cli_group_imports=[],
+        pause_for_return=lambda: pause_calls.append(True),
+    )
+    async with app.run_test() as pilot:
+        app.printer = RecordingPrinter()
+        # Default headless-test suspend() raises SuspendNotSupported before
+        # the body (and therefore the pause) ever runs.
+        input_widget = app.query_one("#cmdline")
+        input_widget.value = "!true"
+        await pilot.press("enter")
+
+        assert pause_calls == []
+        assert any("suspend" in msg.lower() for msg in app.printer.error_calls)
+
+
+def test_pause_for_return_defaults_to_the_real_implementation(tmp_path):
+    from onedep_manager.shell.tui.app import _default_pause_for_return
+
+    app = OneDepTuiApp(
+        config=mock.Mock(),
+        resolver=EntryPathResolver(path_info=FakePathInfo()),
+        plugin_dirs=[tmp_path / "plugins"],
+        script_dirs=[tmp_path / "scripts"],
+        cli_group_imports=[],
+    )
+
+    assert app._pause_for_return is _default_pause_for_return

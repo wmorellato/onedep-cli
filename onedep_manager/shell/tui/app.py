@@ -2,7 +2,7 @@ import importlib
 import shlex
 import subprocess
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import click
 from textual.app import App, ComposeResult, SuspendNotSupported
@@ -35,6 +35,21 @@ DEFAULT_PLUGIN_DIRS = [_SHELL_PACKAGE_DIR / "plugins", Path.home() / ".onedep" /
 DEFAULT_SCRIPT_DIRS = [_SHELL_PACKAGE_DIR / "scripts", Path.home() / ".onedep" / "shell" / "scripts"]
 
 
+def _default_pause_for_return() -> None:
+    """Block for a keypress before the TUI resumes from a suspended command.
+
+    Without this, a fast command's output (e.g. `ls`) can be erased by the
+    TUI's redraw before there's any chance to read it -- the suspend/resume
+    round-trip can be faster than a human can perceive. `input()` here reads
+    from the real terminal, which is what `self.suspend()` hands control
+    back to.
+    """
+    try:
+        input("\nPress Enter to return to onedep-manager shell...")
+    except EOFError:
+        pass
+
+
 class OneDepTuiApp(FilesCommands, App):
     """Interactive TUI shell launched by `onedep-manager shell`."""
 
@@ -42,8 +57,9 @@ class OneDepTuiApp(FilesCommands, App):
     #panels {
         dock: top;
         height: auto;
-        border: solid $accent;
-        padding: 0 1;
+        border: round $accent;
+        background: $boost;
+        padding: 1 2;
     }
 
     RichLog {
@@ -63,6 +79,7 @@ class OneDepTuiApp(FilesCommands, App):
         plugin_dirs: Optional[List[Path]] = None,
         script_dirs: Optional[List[Path]] = None,
         cli_group_imports: Optional[List[Tuple[str, str, str]]] = None,
+        pause_for_return: Optional[Callable[[], None]] = None,
     ):
         super().__init__()
 
@@ -74,6 +91,7 @@ class OneDepTuiApp(FilesCommands, App):
         self._cli_group_imports = cli_group_imports if cli_group_imports is not None else DEFAULT_CLI_GROUP_IMPORTS
         self._bridged_groups: Dict[str, click.Group] = {}
         self._ctx_obj = CLIContext(config=self.config)
+        self._pause_for_return = pause_for_return or _default_pause_for_return
         self.printer = None  # set in on_mount, once the RichLog exists
 
     def compose(self) -> ComposeResult:
@@ -153,7 +171,9 @@ class OneDepTuiApp(FilesCommands, App):
         terminal, so an exception escaping it leaves the terminal stuck
         in suspended state (verified during the final review: a script
         without its execute bit left the terminal permanently suspended
-        before this fix).
+        before this fix). Also pauses for a keypress before resuming, so a
+        fast command's output isn't erased by the redraw before it can be
+        read.
         """
         failure = None
         try:
@@ -162,6 +182,7 @@ class OneDepTuiApp(FilesCommands, App):
                     action()
                 except BaseException as exc:  # noqa: BLE001 -- must never escape suspend()
                     failure = exc
+                self._pause_for_return()
         except SuspendNotSupported:
             self.printer.error(f"Cannot run '{label}' here: suspending the TUI isn't supported in this environment")
             return
@@ -230,7 +251,9 @@ class OneDepTuiApp(FilesCommands, App):
         (ScriptNotFoundError, OSError/PermissionError, ...) is re-raised
         here *after* the suspend block has safely exited, so it still
         reaches _do_scripts's existing except clauses -- but the terminal
-        is never left stuck suspended getting there.
+        is never left stuck suspended getting there. Also pauses for a
+        keypress before resuming, so the script's output isn't erased by
+        the redraw before it can be read.
         """
         result = {}
         failure = None
@@ -241,6 +264,7 @@ class OneDepTuiApp(FilesCommands, App):
                     result["code"] = self.scripts.run(name, args)
                 except BaseException as exc:  # noqa: BLE001 -- must never escape suspend()
                     failure = exc
+                self._pause_for_return()
         except SuspendNotSupported:
             self.printer.error(f"Cannot run script '{name}' here: suspending the TUI isn't supported in this environment")
             return None

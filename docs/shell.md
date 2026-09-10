@@ -15,14 +15,15 @@ poetry run onedep-manager shell --site WWPDB_DEPLOY_TEST_RU   # -i works too
 The screen has three parts:
 - a **header panel** at the top, always visible, showing the current
   entry and file selection (filenames, truncated with `... N more` past
-  10)
+  10, with a total file count)
 - a **scrolling log** in the middle, where command output appears
 - a **command line** at the bottom, where you type
 
 ```
-┌ Entry: D_800000 ──────────────────────────────────┐
-│ Selection: D_800000_model_P1.cif.V1, ... 3 more    │
-└─────────────────────────────────────────────────────┘
+╭───────────────────────────────────────────────────────────╮
+│ Entry:      D_800000                                      │
+│ Selection:  D_800000_model_P1.cif.V1, ... 3 more (4 files) │
+╰───────────────────────────────────────────────────────────╯
  (command output scrolls here)
 
 
@@ -42,12 +43,14 @@ services status
 paths get archive D_800000
 ```
 
-Running one of these (or a `!<command>` shell escape, below) briefly
-hands the whole terminal over to it — the screen clears, the command's
-own output prints normally, then the TUI redraws once it finishes. This
-flicker is deliberate, not a bug: it's how the command's real output
-(colors, formatting, interactive prompts) is preserved exactly as it
-would look outside the shell.
+Running one of these (or a `!<command>` shell escape, below, or `scripts
+run`) briefly hands the whole terminal over to it — the screen clears,
+the command's own output prints normally, then it waits for you to press
+Enter (`Press Enter to return to onedep-manager shell...`) before the
+TUI redraws. This is deliberate, not a bug: it's how the command's real
+output (colors, formatting, interactive prompts) is preserved exactly as
+it would look outside the shell, and the pause guarantees you get to
+read it even for a command that finishes instantly.
 
 If one of these groups can't be imported in your environment (e.g. a
 missing dependency), the shell reports it in the log and starts anyway
@@ -211,8 +214,9 @@ hash_models.sh    models, hashing    md5sum every model file in the current dire
 ```
 
 `scripts run` runs the script the same way bridged commands do — the
-screen briefly hands over to it so its output streams live — and a
-non-zero exit code is reported as an error afterward. As with plugins,
+screen briefly hands over to it so its output streams live, waits for
+Enter before returning, and a non-zero exit code is reported as an error
+afterward. As with plugins,
 these directories are scanned in order (built-in, then
 `~/.onedep/shell/scripts/`), and a script that can't be executed (missing
 +x bit, etc.) reports a clean error rather than a traceback.

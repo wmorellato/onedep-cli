@@ -1,9 +1,14 @@
+from rich.text import Text
 from textual.widgets import Static
 
 from onedep_manager.shell.context import ShellContext
 
+_LABEL_WIDTH = 12
+_LABEL_STYLE = "bold cyan"
+_VALUE_STYLE = "bright_white"
 
-def format_entry_panel(context: ShellContext, max_names: int = 10) -> str:
+
+def format_entry_panel(context: ShellContext, max_names: int = 10) -> Text:
     entry = context.current_entry or "no entry set"
     selection = context.current_selection
 
@@ -15,8 +20,16 @@ def format_entry_panel(context: ShellContext, max_names: int = 10) -> str:
         selection_text = ", ".join(names)
         if remainder > 0:
             selection_text += f", ... {remainder} more"
+        count = len(selection)
+        selection_text += f" ({count} file{'s' if count != 1 else ''})"
 
-    return f"Entry: {entry}\nSelection: {selection_text}"
+    text = Text()
+    text.append(f"{'Entry:':<{_LABEL_WIDTH}}", style=_LABEL_STYLE)
+    text.append(entry, style=_VALUE_STYLE)
+    text.append("\n")
+    text.append(f"{'Selection:':<{_LABEL_WIDTH}}", style=_LABEL_STYLE)
+    text.append(selection_text, style=_VALUE_STYLE)
+    return text
 
 
 class Panel(Static):

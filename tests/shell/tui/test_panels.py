@@ -49,6 +49,37 @@ def test_format_entry_panel_truncates_past_max_names():
     assert "... 5 more" in text
 
 
+def test_format_entry_panel_shows_selection_count():
+    context = ShellContext()
+    context.set_entry("D_1000001")
+    context.set_selection([Path("/a/one.cif"), Path("/a/two.cif")])
+
+    text = format_entry_panel(context)
+
+    assert "(2 files)" in text
+
+
+def test_format_entry_panel_singular_file_count():
+    context = ShellContext()
+    context.set_selection([Path("/a/one.cif")])
+
+    text = format_entry_panel(context)
+
+    assert "(1 file)" in text
+
+
+def test_format_entry_panel_styles_labels_bold_cyan_and_values_bright_white():
+    context = ShellContext()
+    context.set_entry("D_1000001")
+
+    text = format_entry_panel(context)
+
+    styles_by_text = {text.plain[span.start:span.end]: span.style for span in text.spans}
+    assert styles_by_text["Entry:      "] == "bold cyan"
+    assert styles_by_text["D_1000001"] == "bright_white"
+    assert styles_by_text["Selection:  "] == "bold cyan"
+
+
 def test_entry_selection_panel_is_a_panel():
     panel = EntrySelectionPanel()
     assert isinstance(panel, Panel)
