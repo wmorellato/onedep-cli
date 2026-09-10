@@ -1,7 +1,7 @@
 import click
 
 from onedep_manager.cli.common import get_config
-from onedep_manager.shell.app import OneDepShell
+from onedep_manager.shell.tui.app import OneDepTuiApp
 
 
 @click.command(name="shell", help="Launch the interactive OneDep shell")
@@ -9,4 +9,4 @@ from onedep_manager.shell.app import OneDepShell
 @click.pass_context
 def shell(ctx, site):
     config = get_config(ctx)
-    OneDepShell(config=config, site=site).cmdloop()
+    OneDepTuiApp(config=config, site=site).run()
