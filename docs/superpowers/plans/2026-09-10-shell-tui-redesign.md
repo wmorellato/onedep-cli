@@ -745,7 +745,6 @@ git commit -m "Replace bridge_click_group with invoke_click_group for the TUI sh
 import contextlib
 import sys
 import types
-from pathlib import Path
 from unittest import mock
 
 import click
@@ -1119,7 +1118,7 @@ class OneDepTuiApp(FilesCommands, App):
             return
 
         if stripped.startswith("!"):
-            self._run_suspended(f"! {stripped}", lambda: subprocess.run(stripped[1:], shell=True))
+            self._run_suspended(f"! {stripped[1:]}", lambda: subprocess.run(stripped[1:], shell=True))
             self._refresh_panels()
             return
 
