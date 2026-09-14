@@ -1,5 +1,6 @@
 import importlib
 import logging
+import os
 import shlex
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -12,6 +13,7 @@ from onedep_manager.config import Config
 from onedep_manager.shell.bridging import bridge_click_group
 from onedep_manager.shell.context import ShellContext
 from onedep_manager.shell.files import FilesCommands
+from onedep_manager.shell.navigation import NavigationCommands
 from onedep_manager.shell.plugin_loader import load_plugins
 from onedep_manager.shell.resolver import EntryPathResolver
 from onedep_manager.shell.scripts import ScriptNotFoundError, ScriptRegistry
@@ -47,7 +49,7 @@ def _build_console() -> Console:
     return console
 
 
-class OneDepShell(FilesCommands, cmd2.Cmd):
+class OneDepShell(FilesCommands, NavigationCommands, cmd2.Cmd):
     """Interactive shell launched by `onedep-manager shell`."""
 
     def __init__(
@@ -87,7 +89,16 @@ class OneDepShell(FilesCommands, cmd2.Cmd):
     def _update_prompt(self) -> None:
         entry = self.context.current_entry or "-"
         count = len(self.context.current_selection)
-        self.prompt = f"({entry}) [{count} files] onedep> "
+        self.prompt = f"{self._display_cwd()} ({entry}) [{count} files] onedep> "
+
+    def _display_cwd(self) -> str:
+        home = str(Path.home())
+        cwd = str(Path.cwd())
+        if cwd == home:
+            return "~"
+        if cwd.startswith(home + os.sep):
+            return "~" + cwd[len(home):]
+        return cwd
 
     def do_entry(self, arg) -> None:
         """Set or show the current entry id: `entry D_1000001`"""

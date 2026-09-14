@@ -11,10 +11,11 @@ poetry run onedep-manager shell
 poetry run onedep-manager shell --site WWPDB_DEPLOY_TEST_RU   # -i works too
 ```
 
-The prompt shows the current entry and selection size:
+The prompt shows the working directory, the current entry, and the
+selection size:
 
 ```
-(-) [0 files] onedep>
+~ (-) [0 files] onedep>
 ```
 
 Exit with `quit`, `exit`, or Ctrl-D (all provided by `cmd2`).
@@ -26,8 +27,8 @@ same command groups available from `onedep-manager <group> ...` — are all
 usable directly inside the shell:
 
 ```
-(-) [0 files] onedep> services status
-(-) [0 files] onedep> paths get archive D_800000
+~ (-) [0 files] onedep> services status
+~ (-) [0 files] onedep> paths get archive D_800000
 ```
 
 If one of these groups can't be imported in your environment (e.g. a
@@ -38,8 +39,8 @@ Anything the shell doesn't recognize falls through to your real shell,
 same as typing `!<command>` in any `cmd2` app:
 
 ```
-(-) [0 files] onedep> !ls -la
-(-) [0 files] onedep> !git status
+~ (-) [0 files] onedep> !ls -la
+~ (-) [0 files] onedep> !git status
 ```
 
 ## Entry navigation
@@ -54,10 +55,51 @@ the entry's archive path immediately and warns (without refusing to set
 it) if that path doesn't exist yet:
 
 ```
-(-) [0 files] onedep> entry D_9999999
+~ (-) [0 files] onedep> entry D_9999999
 Warning: Entry 'D_9999999' resolved to '/data/archive/D_9999999', which does not exist
-(D_9999999) [0 files] onedep>
+~ (D_9999999) [0 files] onedep>
 ```
+
+## Changing directory between repositories
+
+```
+cd <repo> [identifier]
+```
+
+Resolves `<repo>` + `identifier` to a filesystem path, `os.chdir`s the
+shell process into it, and sets it as the current entry (same as running
+`entry <identifier>`) — so a subsequent `files find` with no `--entry`
+picks it up, and the prompt's working directory updates. `identifier` can
+be omitted if an entry is already set. `<repo>` tab-completes and accepts:
+`tempdep`, `deposit`, `deposit-ui`, `archive`, `upload`, `pickles`,
+`session`.
+
+Short mnemonics do the same thing for one repo each, mirroring the `cd*`
+bash functions from `onedep-manager paths generate-funcs`:
+
+```
+cdt [id]     # tempdep
+cdd [id]     # deposit
+cdui [id]    # deposit-ui
+cda [id]     # archive
+cds [id]     # session
+cdup [id]    # upload
+cdpkl [id]   # pickles
+```
+
+```
+~ (-) [0 files] onedep> cdd D_800000
+~/data/deposit/D_800000 (D_800000) [0 files] onedep> cda
+~/data/archive/D_800000 (D_800000) [0 files] onedep>
+```
+
+`cdwfi` navigates into a workflow instance directory — `cdwfi <wfinst_id>`
+uses the current entry, or `cdwfi <entry_id> <wfinst_id>` for an explicit
+one. A repo/directory that doesn't exist reports a clean error instead of
+changing directory.
+
+There's no `cd`-style command for `ccid`, `wfxml`, or `package` (the
+bash `viccid`/`viwfx`/`cdpkg` functions) — those stay bash-only for now.
 
 ## Finding and acting on files
 
@@ -91,15 +133,15 @@ find`/`list`/`hash`/`info` show whatever's currently selected instead.
   version per (dataset, type, part, format) group
 
 ```
-(D_800000) [0 files] onedep> files find --type model
+~ (D_800000) [0 files] onedep> files find --type model
 ┏━━━━━━━━━━━━━┳━━━━━━━┳━━━━━━┳━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ permissions ┃ owner ┃ size ┃ mtime             ┃ md5                            ┃ path                         ┃
 ┡━━━━━━━━━━━━━╇━━━━━━━╇━━━━━━╇━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
 │ -rw-r--r--  │ user  │ 1234 │ 2026-09-09 10:00  │ 5d41402abc4b2a76b9719d911017c…│ .../D_800000_model_P1.cif.V1 │
 └─────────────┴───────┴──────┴───────────────────┴────────────────────────────────┴──────────────────────────────┘
 
-(D_800000) [0 files] onedep> files find --type model -s
-(D_800000) [1 files] onedep> files hash
+~ (D_800000) [0 files] onedep> files find --type model -s
+~ (D_800000) [1 files] onedep> files hash
 ```
 
 `hash`/`info`/`list` accept the same filter flags for a one-shot query
@@ -109,6 +151,11 @@ selection instead. **Note:** in this version, `find`/`list`/`hash`/`info`
 all render the identical table — `hash` and `info` don't yet show a
 narrower column set. A bad `--version` value or an unknown `--repo` reports
 a clean error rather than a crash.
+
+`ls` and `ff` are shorthand aliases for `files list` and `files find` —
+`ls --type model` is exactly `files list --type model`. Note `ls` shadows
+the shell's own directory listing; use `!ls` for a plain OS directory
+listing.
 
 ### Extending `files` with plugins
 
@@ -135,7 +182,7 @@ class CopyToPlugin(FilePlugin):
 ```
 
 ```
-(D_800000) [1 files] onedep> files copy-to --dest /tmp/out
+~ (D_800000) [1 files] onedep> files copy-to --dest /tmp/out
 ```
 
 Trailing `--key value` / `--flag` tokens after the plugin name are parsed
@@ -181,9 +228,9 @@ tags: [models, hashing]
 ```
 
 ```
-(-) [0 files] onedep> scripts list --tag models
+~ (-) [0 files] onedep> scripts list --tag models
 hash_models.sh    models, hashing    md5sum every model file in the current directory
-(-) [0 files] onedep> scripts run hash_models.sh
+~ (-) [0 files] onedep> scripts run hash_models.sh
 ```
 
 `scripts run` executes the script as a real subprocess — output streams
@@ -194,11 +241,9 @@ these directories are scanned in order (built-in, then
 
 ## Known limitations (current version)
 
-- **No `cd`/`ls` between repositories yet.** Setting an entry with `entry`
-  and querying files with `files find --repo <name>` works; interactively
-  changing your actual working directory into `deposit`/`archive`/etc. the
-  way the bash functions from `onedep-manager paths generate-funcs` do is
-  not implemented. Those bash functions are still the way to do that today.
+- **No shell equivalent of `viccid`/`viwfx`/`cdpkg`.** Those bash functions
+  (open a CCD/wfxml file in `$EDITOR`, cd into a package repo by name) are
+  still bash-only for now.
 - `files hash`/`files info` currently render the same full table as
   `files list`/`files find` — there's no narrower, action-specific column
   set yet.

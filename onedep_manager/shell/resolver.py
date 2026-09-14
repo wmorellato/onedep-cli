@@ -13,6 +13,10 @@ _REPO_GETTERS: Dict[str, Callable] = {
     "archive": lambda pi, entry_id: pi.getArchivePath(dataSetId=entry_id),
     "upload": lambda pi, entry_id: pi.getDirPath(dataSetId=entry_id, fileSource="uploads"),
     "pickles": lambda pi, entry_id: pi.getDirPath(dataSetId=entry_id, fileSource="pickles"),
+    # identifier is "<entry_id>:<wf_instance_id>", matching `paths get wfinst`.
+    "wfinst": lambda pi, identifier: pi.getInstancePath(
+        dataSetId=identifier.split(":")[0], wfInstanceId=identifier.split(":")[1]
+    ),
 }
 
 
