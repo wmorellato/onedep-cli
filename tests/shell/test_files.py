@@ -182,13 +182,21 @@ def test_plugin_exception_is_reported_and_does_not_propagate(app):
 def test_plugin_receives_parsed_keyword_arguments(app):
     app.dispatch(["kwrecord", "--dest", "/tmp", "--verbose"])
 
-    assert app._kwargs_plugin.last_kwargs == {"dest": "/tmp", "verbose": True}
+    assert app._kwargs_plugin.last_kwargs["dest"] == "/tmp"
+    assert app._kwargs_plugin.last_kwargs["verbose"] is True
 
 
-def test_plugin_with_no_extra_args_gets_empty_kwargs(app):
+def test_plugin_with_no_extra_args_gets_only_injected_context_and_resolver(app):
     app.dispatch(["kwrecord"])
 
-    assert app._kwargs_plugin.last_kwargs == {}
+    assert set(app._kwargs_plugin.last_kwargs) == {"context", "resolver"}
+
+
+def test_plugin_receives_shell_context_and_resolver(app):
+    app.dispatch(["kwrecord"])
+
+    assert app._kwargs_plugin.last_kwargs["context"] is app.context
+    assert app._kwargs_plugin.last_kwargs["resolver"] is app.resolver
 
 
 def test_dispatch_usage_message_lists_loaded_plugin_names(app):

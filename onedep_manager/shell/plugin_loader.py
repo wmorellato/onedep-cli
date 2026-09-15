@@ -13,6 +13,13 @@ class FilePlugin(ABC):
 
     Subclasses set `name` (the action name used to invoke it) and `help`
     (shown in `files` usage output), and implement `run`.
+
+    In addition to any `--key value` tokens parsed from the command line,
+    `run` always receives `context` (the shell's `ShellContext` -- current
+    entry/selection) and `resolver` (its `EntryPathResolver`) as keyword
+    arguments, so a plugin can act relative to whatever's currently
+    selected without the user retyping it. A plugin that doesn't need
+    them can just declare `**kwargs` and ignore them.
     """
 
     name: str

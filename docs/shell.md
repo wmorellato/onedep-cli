@@ -157,44 +157,69 @@ a clean error rather than a crash.
 the shell's own directory listing; use `!ls` for a plain OS directory
 listing.
 
+### Built-in plugins
+
+**`copy`** — copy the current selection to a plain directory, or into a
+repository for the current entry:
+
+```
+~ (D_800000) [1 files] onedep> files copy --dest /tmp/out
+copied /data/archive/D_800000/D_800000_model_P1.cif.V1 -> /tmp/out/D_800000_model_P1.cif.V1
+
+~ (D_800000) [1 files] onedep> files copy --repo deposit
+copied /data/archive/D_800000/D_800000_model_P1.cif.V1 -> /data/deposit/D_800000/D_800000_model_P1.cif.V1
+```
+
+`--dest <path>` copies into an arbitrary directory, creating it if it
+doesn't exist. `--repo <name>` resolves that repository's path for the
+*current entry* (same repos as `cd`/`files find --repo`) and copies
+there instead — `--dest` and `--repo` are mutually exclusive, and `--repo`
+requires an entry to be selected first (see `entry`/`cd`). Either way, a
+missing selection, an unknown repo, or a copy failure reports a clean
+error instead of crashing.
+
 ### Extending `files` with plugins
 
 Any `.py` file dropped into a plugin directory that defines a `FilePlugin`
 subclass becomes a new `files <name>` action — no core code changes:
 
 ```python
-# ~/.onedep/shell/plugins/copy_to.py
+# ~/.onedep/shell/plugins/touch_marker.py
 from onedep_manager.shell.plugin_loader import FilePlugin
-import shutil
 
-class CopyToPlugin(FilePlugin):
-    name = "copy-to"
-    help = "Copy the current selection to --dest"
+class TouchMarkerPlugin(FilePlugin):
+    name = "touch-marker"
+    help = "Create a .done marker next to the current entry's archive dir"
 
-    def run(self, files, **kwargs):
-        dest = kwargs.get("dest")
-        if not dest:
-            print("Usage: files copy-to --dest <path>")
+    def run(self, files, context=None, resolver=None, **kwargs):
+        if not context or not context.current_entry:
+            print("Usage: files touch-marker (requires a current entry)")
             return
-        for f in files:
-            shutil.copy(f, dest)
-            print(f"copied {f} -> {dest}")
+        archive_dir = resolver.resolve(context.current_entry, "archive")
+        (archive_dir / ".done").touch()
+        print(f"marked {archive_dir}")
 ```
 
 ```
-~ (D_800000) [1 files] onedep> files copy-to --dest /tmp/out
+~ (D_800000) [0 files] onedep> files touch-marker
+marked /data/archive/D_800000
 ```
 
 Trailing `--key value` / `--flag` tokens after the plugin name are parsed
 into keyword arguments (`--dest /tmp` → `dest="/tmp"`, `--verbose` →
-`verbose=True`) and passed to `run(files, **kwargs)` alongside the current
-selection. A plugin that raises reports a clean error instead of crashing
-the shell. Running `files` with no arguments lists usage and, if any
-plugins are loaded, their names.
+`verbose=True`). `run` always also receives `context` (the shell's
+`ShellContext` — current entry/selection) and `resolver` (its
+`EntryPathResolver`) as keyword arguments alongside the current
+selection, so a plugin can act relative to whatever's currently selected
+without the user retyping it; a plugin that doesn't need them can just
+declare `**kwargs`. A plugin that raises reports a clean error instead of
+crashing the shell. Running `files` with no arguments lists usage and, if
+any plugins are loaded, their names.
 
 Plugins are scanned from two places, in order (a later one overrides an
 earlier plugin of the same `name`):
-1. `onedep_manager/shell/plugins/` — shipped with this repo
+1. `onedep_manager/shell/plugins/` — shipped with this repo (this is
+   where `copy` itself lives)
 2. `~/.onedep/shell/plugins/` — yours, personal or team, no packaging or
    reinstall needed
 

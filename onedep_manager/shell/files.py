@@ -197,6 +197,6 @@ class FilesCommands:
 
         kwargs = _parse_plugin_kwargs(rest)
         try:
-            plugin.run(self.context.current_selection, **kwargs)
+            plugin.run(self.context.current_selection, context=self.context, resolver=self.resolver, **kwargs)
         except Exception as exc:
             self.printer.error(f"files {action}: {exc}")
