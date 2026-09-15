@@ -18,6 +18,13 @@ class ScriptMetadata:
     tags: List[str] = field(default_factory=list)
 
 
+@dataclass
+class ScriptResult:
+    returncode: int
+    stdout: str
+    stderr: str
+
+
 class ScriptRegistry:
     """Discovers whitelisted scripts: presence in one of `directories`, with
     a matching `<script>.yaml` metadata sidecar, is what makes a script
@@ -55,12 +62,19 @@ class ScriptRegistry:
             scripts = [s for s in scripts if tag in s.tags]
         return sorted(scripts, key=lambda s: s.name)
 
-    def run(self, name: str, args: Optional[List[str]] = None) -> int:
+    def run(self, name: str, args: Optional[List[str]] = None) -> ScriptResult:
+        """Run the named script and capture its output.
+
+        Output is captured (not inherited from the real terminal) because
+        the caller -- the TUI shell -- is actively rendering its own
+        screen; a script writing directly to the real terminal's file
+        descriptors while that's happening would corrupt the display.
+        """
         try:
             meta = self._scripts[name]
         except KeyError as exc:
             raise ScriptNotFoundError(f"Script '{name}' is not registered") from exc
 
         command = [str(meta.path)] + list(args or [])
-        result = subprocess.run(command)
-        return result.returncode
+        result = subprocess.run(command, capture_output=True, text=True)
+        return ScriptResult(returncode=result.returncode, stdout=result.stdout, stderr=result.stderr)

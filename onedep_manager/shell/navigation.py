@@ -1,7 +1,6 @@
 import os
-import shlex
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 from onedep_manager.cli.common import Printer
 from onedep_manager.config import Config
@@ -10,16 +9,16 @@ from onedep_manager.shell.resolver import EntryPathResolver, UnknownRepositoryEr
 
 _SESSION_REPO = "session"
 
-# suffix -> repo name, mirroring the cd<suffix>/ls<suffix> bash functions
-# from `onedep-manager paths generate-funcs`.
-_MNEMONICS = {
-    "t": "tempdep",
-    "d": "deposit",
-    "ui": "deposit-ui",
-    "a": "archive",
-    "s": _SESSION_REPO,
-    "up": "upload",
-    "pkl": "pickles",
+# action name -> repo name, mirroring the cd<suffix>/ls<suffix> bash
+# functions from `onedep-manager paths generate-funcs`.
+CD_MNEMONICS = {
+    "cdt": "tempdep",
+    "cdd": "deposit",
+    "cdui": "deposit-ui",
+    "cda": "archive",
+    "cds": _SESSION_REPO,
+    "cdup": "upload",
+    "cdpkl": "pickles",
 }
 
 
@@ -28,9 +27,11 @@ class NavigationCommands:
     `onedep-manager paths generate-funcs` -- but changing this shell
     process's own working directory instead of writing a sourceable script.
 
-    Composed into onedep_manager.shell.app.OneDepShell. Requires the host
-    object to provide `context`, `resolver`, `config`, `printer`, `do_files`,
-    and `_update_prompt` (see the class-level type hints below).
+    Composed into onedep_manager.shell.tui.app.OneDepTuiApp. Requires the
+    host object to provide `context`, `resolver`, `config`, and `printer`
+    (see the class-level type hints below). Each method takes an
+    already-tokenized argument list, matching the `_do_entry`/`_do_scripts`
+    convention used elsewhere in the TUI app.
     """
 
     context: ShellContext
@@ -64,12 +65,10 @@ class NavigationCommands:
 
         os.chdir(path)
         self.context.set_entry(context_entry if context_entry is not None else identifier)
-        self._update_prompt()
 
-    def do_cd(self, arg) -> None:
+    def do_cd(self, args: List[str]) -> None:
         """Cd into a repository path for an entry: `cd <repo> [identifier]`
         Uses the current entry (see `entry`) if identifier is omitted."""
-        args = shlex.split(str(arg))
         if not args or len(args) > 2:
             known = ", ".join(sorted(set(self.resolver.known_repos) | {_SESSION_REPO}))
             self.printer.error(f"Usage: cd <repo> [identifier]\nValid repos: {known}")
@@ -77,14 +76,17 @@ class NavigationCommands:
         repo, identifier = args[0], (args[1] if len(args) == 2 else None)
         self._cd(repo, identifier)
 
-    def complete_cd(self, text, line, begidx, endidx):
-        repos = sorted(set(self.resolver.known_repos) | {_SESSION_REPO})
-        return [r for r in repos if r.startswith(text)]
+    def do_cd_mnemonic(self, action: str, args: List[str]) -> None:
+        """Cd into the repository for `action`'s mnemonic (see CD_MNEMONICS):
+        `cdd [identifier]` (uses the current entry if identifier is omitted)."""
+        if len(args) > 1:
+            self.printer.error(f"Usage: {action} [identifier]")
+            return
+        self._cd(CD_MNEMONICS[action], args[0] if args else None)
 
-    def do_cdwfi(self, arg) -> None:
+    def do_cdwfi(self, args: List[str]) -> None:
         """Cd into a workflow instance directory: `cdwfi <wfinst_id>` (uses
         the current entry) or `cdwfi <entry_id> <wfinst_id>`."""
-        args = shlex.split(str(arg))
         if len(args) == 1:
             entry_id, wfinst_id = self.context.current_entry, args[0]
         elif len(args) == 2:
@@ -98,30 +100,3 @@ class NavigationCommands:
             return
 
         self._cd("wfinst", f"{entry_id}:{wfinst_id}", context_entry=entry_id)
-
-    def do_ls(self, arg) -> None:
-        """Alias for `files list [args...]`."""
-        self.do_files(f"list {arg}")
-
-    def do_ff(self, arg) -> None:
-        """Alias for `files find [args...]`."""
-        self.do_files(f"find {arg}")
-
-
-def _make_mnemonic(suffix: str, repo: str):
-    def handler(self, arg) -> None:
-        args = shlex.split(str(arg))
-        if len(args) > 1:
-            self.printer.error(f"Usage: cd{suffix} [identifier]")
-            return
-        self._cd(repo, args[0] if args else None)
-
-    handler.__doc__ = f"Cd into the '{repo}' path for an entry: `cd{suffix} [identifier]` (uses the current entry if omitted)."
-    handler.__name__ = f"do_cd{suffix}"
-    return handler
-
-
-for _suffix, _repo in _MNEMONICS.items():
-    setattr(NavigationCommands, f"do_cd{_suffix}", _make_mnemonic(_suffix, _repo))
-
-del _suffix, _repo

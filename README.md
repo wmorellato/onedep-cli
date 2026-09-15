@@ -30,7 +30,7 @@ for the commands in each group.
 poetry run onedep-manager shell
 ```
 
-An interactive `cmd2`-based shell wrapping all of the above, plus entry
+An interactive Textual-based shell wrapping all of the above, plus entry
 navigation, wwPDB-aware file queries, drop-in file-action plugins, and a
 whitelisted script registry. See [`docs/shell.md`](docs/shell.md).
 

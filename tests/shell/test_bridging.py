@@ -1,7 +1,6 @@
 import click
-import cmd2
 
-from onedep_manager.shell.bridging import bridge_click_group
+from onedep_manager.shell.bridging import invoke_click_group
 
 
 @click.group(name="demo", help="Demo command group")
@@ -20,36 +19,19 @@ def boom():
     raise click.ClickException("something went wrong")
 
 
-def _run(shell, line):
-    shell.onecmd_plus_hooks(line)
-
-
-def test_bridged_group_command_runs(capsys):
-    shell = cmd2.Cmd()
-    bridge_click_group(shell, demo_group, ctx_obj=None)
-
-    _run(shell, "demo greet world")
+def test_invoke_runs_the_command(capsys):
+    invoke_click_group(demo_group, ["greet", "world"])
 
     assert "hello world" in capsys.readouterr().out
 
 
-def test_bridged_group_click_exception_is_shown_not_raised(capsys):
-    shell = cmd2.Cmd()
-    bridge_click_group(shell, demo_group, ctx_obj=None)
-
-    _run(shell, "demo boom")  # must not raise
+def test_invoke_shows_click_exception_instead_of_raising(capsys):
+    invoke_click_group(demo_group, ["boom"])  # must not raise
 
     assert "something went wrong" in capsys.readouterr().err
 
 
-def test_bridged_command_gets_docstring_from_group_help():
-    shell = cmd2.Cmd()
-    bridge_click_group(shell, demo_group, ctx_obj=None)
-
-    assert shell.do_demo.__doc__ == "Demo command group"
-
-
-def test_bridge_passes_ctx_obj_through():
+def test_invoke_passes_ctx_obj_through():
     seen = {}
 
     @click.group(name="capture")
@@ -62,10 +44,26 @@ def test_bridge_passes_ctx_obj_through():
     def noop(ctx):
         pass
 
-    shell = cmd2.Cmd()
     sentinel = object()
-    bridge_click_group(shell, capture_group, ctx_obj=sentinel)
 
-    _run(shell, "capture noop")
+    invoke_click_group(capture_group, ["noop"], ctx_obj=sentinel)
 
     assert seen["obj"] is sentinel
+
+
+def test_invoke_with_no_ctx_obj_defaults_to_none():
+    seen = {}
+
+    @click.group(name="capture2")
+    @click.pass_context
+    def capture_group(ctx):
+        seen["obj"] = ctx.obj
+
+    @capture_group.command(name="noop")
+    @click.pass_context
+    def noop(ctx):
+        pass
+
+    invoke_click_group(capture_group, ["noop"])
+
+    assert seen["obj"] is None
